@@ -1,0 +1,16 @@
+# Node / PCF
+**/node_modules/
+**/out/
+**/.pcfcache/
+
+# .NET / solution build output
+**/bin/
+**/obj/
+
+# IDE / OS
+.vs/
+.vscode/
+*.user
+*.suo
+Thumbs.db
+.DS_Store

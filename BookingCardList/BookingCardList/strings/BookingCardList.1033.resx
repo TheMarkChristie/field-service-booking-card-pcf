@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <data name="BookingCardList_Display" xml:space="preserve"><value>Booking Card List</value></data>
+  <data name="BookingCardList_Desc" xml:space="preserve"><value>Card list of Bookable Resource Bookings for Field Service mobile.</value></data>
+
+  <data name="Bookings_Display" xml:space="preserve"><value>Bookings</value></data>
+  <data name="Bookings_Desc" xml:space="preserve"><value>Bookable Resource Booking view to display (filters which bookings appear).</value></data>
+
+  <data name="Tab1Name_Display" xml:space="preserve"><value>Tab 1 Name (default)</value></data>
+  <data name="Tab1Name_Desc" xml:space="preserve"><value>Fallback name for tab 1. Overridden by env var prx3_BookingTab1Name. Defaults to Today.</value></data>
+  <data name="Tab2Name_Display" xml:space="preserve"><value>Tab 2 Name (default)</value></data>
+  <data name="Tab2Name_Desc" xml:space="preserve"><value>Fallback name for tab 2. Overridden by env var prx3_BookingTab2Name. Defaults to Tomorrow.</value></data>
+  <data name="Tab3Name_Display" xml:space="preserve"><value>Tab 3 Name (default)</value></data>
+  <data name="Tab3Name_Desc" xml:space="preserve"><value>Fallback name for tab 3. Overridden by env var prx3_BookingTab3Name. Defaults to Complete.</value></data>
+
+  <data name="CustomStatusName_Display" xml:space="preserve"><value>Custom Status Option Name</value></data>
+  <data name="CustomStatusName_Desc" xml:space="preserve"><value>Label for an extra option in the Update-status dropdown. Leave blank to hide it.</value></data>
+  <data name="CustomBookingStatusId_Display" xml:space="preserve"><value>Custom: Booking Status (GUID)</value></data>
+  <data name="CustomBookingStatusId_Desc" xml:space="preserve"><value>Booking Status record GUID to set on the booking when the custom option is chosen.</value></data>
+  <data name="CustomWorkOrderSubStatusId_Display" xml:space="preserve"><value>Custom: Work Order Sub-Status (GUID)</value></data>
+  <data name="CustomWorkOrderSubStatusId_Desc" xml:space="preserve"><value>Work Order Substatus record GUID to set on the work order when the custom option is chosen.</value></data>
+
+  <data name="MapsProvider_Display" xml:space="preserve"><value>Maps Provider</value></data>
+  <data name="MapsProvider_Desc" xml:space="preserve"><value>Which maps app to open when the address is tapped.</value></data>
+  <data name="MapsProvider_Google" xml:space="preserve"><value>Google Maps</value></data>
+  <data name="MapsProvider_Bing" xml:space="preserve"><value>Bing Maps</value></data>
+  <data name="MapsProvider_Apple" xml:space="preserve"><value>Apple Maps</value></data>
+
+  <data name="Label_Customer" xml:space="preserve"><value>Customer</value></data>
+  <data name="Label_Address" xml:space="preserve"><value>Address</value></data>
+  <data name="Label_Start" xml:space="preserve"><value>Start Date &amp; Time</value></data>
+  <data name="Label_Travel" xml:space="preserve"><value>Est. Travel</value></data>
+  <data name="Label_Products" xml:space="preserve"><value>Products Needed</value></data>
+  <data name="NoParts" xml:space="preserve"><value>No Products Specified</value></data>
+
+  <data name="OpenInMaps" xml:space="preserve"><value>Open in maps</value></data>
+  <data name="ViewOnMap" xml:space="preserve"><value>View on map</value></data>
+  <data name="ChangeStatus" xml:space="preserve"><value>Update status</value></data>
+  <data name="Updating" xml:space="preserve"><value>Updating…</value></data>
+  <data name="StatusLocked" xml:space="preserve"><value>Finish the active job before updating others.</value></data>
+  <data name="StatusLockedShort" xml:space="preserve"><value>Locked</value></data>
+  <data name="StatusUnknown" xml:space="preserve"><value>No status</value></data>
+  <data name="Status_Traveling" xml:space="preserve"><value>Traveling</value></data>
+  <data name="Status_InProgress" xml:space="preserve"><value>In Progress</value></data>
+  <data name="Status_Cancelled" xml:space="preserve"><value>Cancelled</value></data>
+
+  <data name="Loading" xml:space="preserve"><value>Loading bookings…</value></data>
+  <data name="NoBookings" xml:space="preserve"><value>No bookings to show.</value></data>
+  <data name="LoadMore" xml:space="preserve"><value>Load more</value></data>
+  <data name="ErrorPrefix" xml:space="preserve"><value>Couldn't load bookings</value></data>
+  <data name="NoStatusFound" xml:space="preserve"><value>No active Booking Status was found for this action in this environment.</value></data>
+</root>

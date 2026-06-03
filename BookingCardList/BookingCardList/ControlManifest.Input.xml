@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<manifest>
+  <control namespace="Proximo3.FieldService" constructor="BookingCardList" version="0.0.13" display-name-key="BookingCardList_Display" description-key="BookingCardList_Desc" control-type="virtual" >
+    <external-service-usage enabled="false">
+    </external-service-usage>
+
+    <!-- The dataset only drives WHICH bookings show (it honours the bound view's
+         filter / sort / paging / view selector). All card detail is pulled via WebAPI.
+         Bind this to a Bookable Resource Booking view (e.g. "My Bookings - Today"). -->
+    <data-set name="bookings" display-name-key="Bookings_Display" description-key="Bookings_Desc">
+    </data-set>
+
+    <!-- The dropdown's target Booking Statuses (Traveling / In Progress / Cancelled)
+         are resolved at runtime by their Field Service Status value, so there is no
+         per-instance status configuration. -->
+
+    <!-- Tab names. These are fallbacks/defaults; the environment variables
+         prx3_BookingTab{1,2,3}Name and prx3_BookingTab{1,2,3}View (a view NAME) override them.
+         When no tab view is set, tabs use the built-in buckets: 1 = today, 2 = tomorrow,
+         3 = completed/cancelled. -->
+    <property name="tab1Name" display-name-key="Tab1Name_Display" description-key="Tab1Name_Desc" of-type="SingleLine.Text" usage="input" required="false" default-value="Today" />
+    <property name="tab2Name" display-name-key="Tab2Name_Display" description-key="Tab2Name_Desc" of-type="SingleLine.Text" usage="input" required="false" default-value="Tomorrow" />
+    <property name="tab3Name" display-name-key="Tab3Name_Display" description-key="Tab3Name_Desc" of-type="SingleLine.Text" usage="input" required="false" default-value="Complete" />
+
+    <!-- Optional custom status action in the Update-status dropdown. If Name is set, the
+         option appears and, when chosen, sets the booking's Booking Status and/or the work
+         order's Sub-Status to the configured records (GUIDs). -->
+    <property name="customStatusName" display-name-key="CustomStatusName_Display" description-key="CustomStatusName_Desc" of-type="SingleLine.Text" usage="input" required="false" />
+    <property name="customBookingStatusId" display-name-key="CustomBookingStatusId_Display" description-key="CustomBookingStatusId_Desc" of-type="SingleLine.Text" usage="input" required="false" />
+    <property name="customWorkOrderSubStatusId" display-name-key="CustomWorkOrderSubStatusId_Display" description-key="CustomWorkOrderSubStatusId_Desc" of-type="SingleLine.Text" usage="input" required="false" />
+
+    <!-- Optional UX config -->
+    <property name="mapsProvider" display-name-key="MapsProvider_Display" description-key="MapsProvider_Desc" of-type="Enum" usage="input" required="false" default-value="0">
+      <value name="google" display-name-key="MapsProvider_Google">0</value>
+      <value name="bing" display-name-key="MapsProvider_Bing">1</value>
+      <value name="apple" display-name-key="MapsProvider_Apple">2</value>
+    </property>
+
+    <resources>
+      <code path="index.ts" order="1"/>
+      <resx path="strings/BookingCardList.1033.resx" version="1.0.0" />
+      <platform-library name="React" version="16.14.0" />
+      <platform-library name="Fluent" version="9.46.2" />
+    </resources>
+
+    <feature-usage>
+      <uses-feature name="Utility" required="true" />
+      <uses-feature name="WebAPI" required="true" />
+    </feature-usage>
+  </control>
+</manifest>

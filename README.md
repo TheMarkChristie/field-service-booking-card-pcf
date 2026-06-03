@@ -1,0 +1,208 @@
+# Booking Card List — Field Service PCF control
+
+A React (virtual) **dataset** PowerApps Component Framework (PCF) control for the **Field
+Service mobile** app. It shows an engineer's Bookable Resource Bookings as rich, tappable
+**cards** grouped into **Today / Tomorrow / Complete** tabs, and lets the engineer update a
+booking's status inline.
+
+- **Control:** `Proximo3.FieldService.BookingCardList`
+- **Publisher prefix:** `prx3`
+- **Current version:** `0.0.13`
+- **Platform libraries:** React 16.14 + Fluent UI v9 (provided by the platform — not bundled)
+
+---
+
+## What it does
+
+Each booking renders as a card showing:
+
+| Element | Source |
+|---|---|
+| Work Order number | `msdyn_workorder.msdyn_name` |
+| Incident Type (chip) | `msdyn_workorder.msdyn_primaryincidenttype` |
+| Customer | `msdyn_workorder.msdyn_serviceaccount` |
+| Address (link → maps, with 📍 icon) | `msdyn_workorder` address fields / lat-long |
+| Start Date & Time | `bookableresourcebooking.starttime` |
+| Est. Travel | `bookableresourcebooking.msdyn_estimatedtravelduration` |
+| Products Needed | related `msdyn_workorderproduct` rows (or *"No Products Specified"*) |
+| Booking Status | `bookableresourcebooking.bookingstatus` |
+
+Behaviour:
+
+- **Tabs** — *Today*, *Tomorrow*, *Complete*, each with a count badge. Each tab runs a
+  Bookable Resource Booking **view** (see [Tabs & views](#tabs--views)).
+- **Tap a card** → opens the booking record.
+- **Tap the address** → opens the native maps app at that location.
+- **Update status** dropdown → Traveling / In Progress / Cancelled, plus an optional
+  **custom** option you configure. Selecting one writes the booking's status (and, for the
+  custom option, the work order's sub-status).
+- **Active-job lock** — if any loaded booking is **Traveling** or **In Progress**, the status
+  dropdown on every *other* card is disabled ("Locked") until that job is finished.
+- **Modern theming** — follows the app's theme, including modern theme overrides and dark mode
+  (via `context.fluentDesignLanguage.tokenTheme`).
+- **Responsive** — single column on a phone, multiple columns on a wide screen.
+- **Offline-capable** — all reads/writes go through `context.webAPI`, which resolves against
+  the mobile offline store when offline (provided the tables are in the offline profile).
+
+---
+
+## Configuration (control properties)
+
+Set these in the form/subgrid designer when you add the control (App designer → the control's
+**Properties**). All are optional.
+
+| Property | Type | Purpose |
+|---|---|---|
+| **Tab 1 Name (default)** | Text | Label for tab 1. Default `Today`. |
+| **Tab 2 Name (default)** | Text | Label for tab 2. Default `Tomorrow`. |
+| **Tab 3 Name (default)** | Text | Label for tab 3. Default `Complete`. |
+| **Custom Status Option Name** | Text | Adds an extra option to the status dropdown. Leave blank to hide it. |
+| **Custom: Booking Status (GUID)** | Text | `bookingstatus` record GUID set on the booking when the custom option is chosen. |
+| **Custom: Work Order Sub-Status (GUID)** | Text | `msdyn_workordersubstatus` record GUID set on the work order when the custom option is chosen. |
+| **Maps Provider** | Choice | Which maps app the address opens: Google (default), Bing, or Apple. |
+
+### Tabs & views
+
+The three tabs run three **system views** of Bookable Resource Bookings, matched **by name**.
+The names are hard-coded in [`BookingCardList/types.ts`](BookingCardList/BookingCardList/types.ts)
+as `TAB_VIEW_NAMES`:
+
+```
+My Bookings - Today
+My Bookings - Tomorrow
+My Bookings - Completed
+```
+
+- Create those three system views (filtered however you like — e.g. current user's resource +
+  date, or completed in the last N days). The control reads each view's FetchXML and runs it,
+  so each tab reflects exactly that view's **filter and sort**.
+- Because the tabs run their own views, **the view the control is placed on does not drive the
+  card content** — bind it to anything.
+- To change which views are used, edit `TAB_VIEW_NAMES` and redeploy.
+
+### Getting the GUIDs for the custom option
+
+Paste these in a browser (signed in), and copy the GUID you want:
+
+```
+Booking statuses:
+<org-url>/api/data/v9.2/bookingstatuses?$select=name,bookingstatusid,msdyn_fieldservicestatus&$filter=statecode eq 0&$orderby=name
+
+Work Order sub-statuses:
+<org-url>/api/data/v9.2/msdyn_workordersubstatuses?$select=msdyn_name,msdyn_workordersubstatusid,msdyn_systemstatus&$filter=statecode eq 0&$orderby=msdyn_name
+```
+
+---
+
+## How an engineer uses it
+
+1. Open the area/page hosting the control. The **Today** tab is selected by default; **Tomorrow**
+   and **Complete** show their own counts.
+2. **Scroll** the cards; **tap a card** to open the full booking.
+3. **Tap the address** (the link with the 📍) to navigate in maps.
+4. **Update status** — pick Traveling / In Progress / Cancelled (or your custom option). The card
+   refreshes to show the new status.
+5. While a job is **Traveling/In Progress**, other cards' status dropdowns are **locked** —
+   finish (or cancel) the active job first.
+
+---
+
+## Status update logic
+
+- **Traveling / In Progress / Cancelled** — the control finds the active `bookingstatus` record
+  whose `msdyn_fieldservicestatus` matches (690970001 / 690970003 / 690970005) and sets the
+  booking's **Booking Status** lookup. Field Service's own logic then handles timestamps and the
+  work-order status rollup.
+- **Custom option** — sets the booking's **Booking Status** to your configured GUID and/or the
+  work order's **Sub-Status** (`msdyn_substatus`) to your configured GUID (which cascades the WO
+  System Status in FS). Either GUID is optional.
+
+---
+
+## Build, package & deploy
+
+Prerequisites: Node LTS, npm, Power Platform CLI (`pac`), .NET SDK.
+
+```powershell
+# Control
+cd BookingCardList
+npm install
+npm run build            # compile + lint + bundle
+npm start watch          # optional local harness (mock data only)
+
+# Solution package
+cd ..\Solution
+dotnet build -c Debug    # -> bin\Debug\Solution.zip   (unmanaged, for dev)
+dotnet build -c Release  # -> bin\Release\Solution.zip (managed, for test/prod)
+
+# Import
+pac auth create --environment https://<org>.crm11.dynamics.com
+pac solution import --path Solution\bin\Debug\Solution.zip --publish-changes
+```
+
+> The manifest declares Fluent as **9.46.2** (a platform-supported version). Newer locally
+> installed Fluent is fine for building, but the declared platform-library version must be one
+> the environment supports or import fails.
+
+### Add it to the app
+
+1. Put a **Bookable Resource Booking subgrid** on the form / custom page used by the mobile app
+   (or set the control as a view's grid control).
+2. In the subgrid's **Components**, add **Booking Card List** and enable it for the **Phone**
+   form factor.
+3. Set the control properties as needed (custom status, maps provider, tab names).
+4. Create the three system views named exactly as in `TAB_VIEW_NAMES`.
+
+### Offline
+
+For offline use on Field Service Mobile, ensure these tables are in the mobile **offline
+profile** (the default FS profile already includes them): `bookableresourcebooking`,
+`msdyn_workorder`, `msdyn_workorderproduct`, `bookingstatus`, `msdyn_workordersubstatus`,
+`account`, `msdyn_incidenttype`, `savedquery`.
+
+---
+
+## Architecture
+
+| File | Role |
+|---|---|
+| [`index.ts`](BookingCardList/BookingCardList/index.ts) | Control lifecycle; reads manifest props + host theme; renders `BookingApp`. |
+| [`components/BookingApp.tsx`](BookingCardList/BookingCardList/components/BookingApp.tsx) | Owns data + state (hooks): runs the views, buckets bookings into tabs, computes the active-job lock, handles status changes. |
+| [`components/BookingList.tsx`](BookingCardList/BookingCardList/components/BookingList.tsx) | Tab bar + scrollable card grid + loading/empty/error states; wraps the host theme in a `FluentProvider`. |
+| [`components/BookingCard.tsx`](BookingCardList/BookingCardList/components/BookingCard.tsx) | A single card and its status dropdown. |
+| [`components/ErrorBoundary.tsx`](BookingCardList/BookingCardList/components/ErrorBoundary.tsx) | Surfaces render errors instead of a blank control. |
+| [`services/dataverse.ts`](BookingCardList/BookingCardList/services/dataverse.ts) | All `context.webAPI` calls (flat `retrieveMultiple`, no `$expand`); runs views via FetchXML; status writes. |
+| [`types.ts`](BookingCardList/BookingCardList/types.ts) | View models, FS status values, `TAB_VIEW_NAMES`, bucketing. |
+| [`util/maps.ts`](BookingCardList/BookingCardList/util/maps.ts) | Maps-URL builder + error helper. |
+| `strings/BookingCardList.1033.resx` | Localised display strings. |
+
+Data flow: each tab's view → FetchXML → booking ids → one batched detail fetch (bookings →
+work orders → products → status FS values), merged into card view models. Status changes write
+via `updateRecord` then re-query the affected booking.
+
+---
+
+## Key schema (logical names)
+
+| Concept | Table / column |
+|---|---|
+| Booking | `bookableresourcebooking` (set `bookableresourcebookings`) |
+| Booking → Work Order | `msdyn_workorder` |
+| Booking → Booking Status | `bookingstatus` (nav `BookingStatus`, set `bookingstatuses`) |
+| Start / travel | `starttime`, `msdyn_estimatedtravelduration` |
+| Work Order | `msdyn_workorder` — `msdyn_name`, `msdyn_serviceaccount`, `msdyn_primaryincidenttype`, address fields |
+| Work Order → Sub-Status | `msdyn_substatus` (→ `msdyn_workordersubstatus`, set `msdyn_workordersubstatuses`) |
+| Work Order Products | `msdyn_workorderproduct` (`msdyn_workorder`, `msdyn_name`, `msdyn_estimatequantity`) |
+| Booking Status | `bookingstatus` — `msdyn_fieldservicestatus` (Scheduled 690970000, Traveling …001, On Break …002, In Progress …003, Completed …004, Canceled …005) |
+
+---
+
+## Troubleshooting
+
+| Symptom | Likely cause / fix |
+|---|---|
+| A tab is empty | The view name doesn't match `TAB_VIEW_NAMES` exactly (watch hyphen vs en-dash, spaces). Fix the view name or the constant. |
+| Cards don't update after deploy | The mobile app caches PCF bundles — hard-refresh (Ctrl+Shift+R) or reopen the app. The manifest version is bumped each release to bust cache. |
+| Errors are invisible | The control logs `[BookingCardList] …` to the browser console (F12) and shows a red banner on the card area. |
+| Custom option doesn't write the WO status | Confirm the GUID is a `msdyn_workordersubstatus` record and the booking has a work order. If the write throws on the `msdyn_substatus` nav property, it may need PascalCase `msdyn_SubStatus`. |
+| Theme looks wrong | The control follows the app's modern theme; ensure the app uses the "new look". |

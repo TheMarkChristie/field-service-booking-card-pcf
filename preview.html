@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Booking Card List — preview</title>
+<style>
+  :root {
+    --accent: #6B2C91;
+    --brand: #6B2C91;
+    --brand-tint-bg: #f3e8fa;
+    --fg1: #242424;
+    --fg3: #616161;
+    --stroke: #e0e0e0;
+    --bg2: #f5f5f5;
+    --card: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    background: var(--bg2);
+    color: var(--fg1);
+  }
+  .phone {
+    max-width: 420px;
+    margin: 24px auto;
+    background: var(--bg2);
+    min-height: 90vh;
+    border: 1px solid var(--stroke);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .appbar {
+    background: #fff;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--stroke);
+    font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .viewname { color: var(--fg3); font-weight: 600; font-size: 14px; }
+  .list { display: flex; flex-direction: column; gap: 12px; padding: 12px; }
+
+  .card {
+    position: relative;
+    background: var(--card);
+    border-radius: 6px;
+    border-top: 3px solid var(--accent);
+    box-shadow: 0 1.6px 3.6px rgba(0,0,0,.13), 0 .3px .9px rgba(0,0,0,.11);
+    padding: 16px 16px 12px;
+    display: flex; flex-direction: column; gap: 10px;
+    cursor: pointer;
+  }
+  .headerRow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .wo { font-weight: 600; font-size: 16px; }
+  .badge {
+    background: var(--brand-tint-bg); color: var(--brand);
+    border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 600; white-space: nowrap;
+  }
+  .divider { height: 1px; background: var(--stroke); }
+  .section { display: flex; flex-direction: column; gap: 2px; }
+  .label { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--fg3); }
+  .value { font-size: 14px; }
+  a.value { color: var(--brand); text-decoration: none; }
+  a.value:hover { text-decoration: underline; }
+  .products { display: flex; flex-direction: column; gap: 2px; }
+  .product { font-size: 14px; }
+  .qty { color: var(--fg3); }
+  .footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; }
+
+  .btn {
+    background: var(--brand); color: #fff; border: none;
+    border-radius: 4px; padding: 6px 12px; font-size: 13px; font-weight: 600;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn .chev { font-size: 10px; }
+  .menuwrap { position: relative; }
+  .menu {
+    position: absolute; right: 0; top: 36px; z-index: 5;
+    background: #fff; border: 1px solid var(--stroke); border-radius: 6px;
+    box-shadow: 0 4px 8px rgba(0,0,0,.14); min-width: 150px; padding: 4px;
+  }
+  .menuitem { padding: 8px 10px; font-size: 14px; border-radius: 4px; cursor: pointer; }
+  .menuitem:hover { background: var(--bg2); }
+  .caption { max-width: 420px; margin: 8px auto 24px; color: var(--fg3); font-size: 12px; text-align: center; }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="appbar">☰ <span>Field Service Mobile</span></div>
+    <div class="appbar"><span class="viewname">My Bookings Card ▾</span></div>
+
+    <div class="list">
+
+      <!-- Card 1 -->
+      <div class="card">
+        <div class="headerRow">
+          <span class="wo">JOB-0361-AK4D</span>
+          <span class="badge">Boiler Service</span>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <span class="label">Customer</span>
+          <span class="value">Beacon Renewable Energy Ltd</span>
+        </div>
+        <div class="section">
+          <span class="label">Address</span>
+          <a class="value" href="#">5 The Maltings, Perth, PH1 5PG</a>
+        </div>
+        <div class="section">
+          <span class="label">Start Date &amp; Time</span>
+          <span class="value">Wed, 03 Jun 2026, 11:00</span>
+        </div>
+        <div class="section">
+          <span class="label">Products Needed</span>
+          <div class="products">
+            <span class="product">Boiler Flue Kit <span class="qty">&times;1</span></span>
+            <span class="product">Condensate Pump <span class="qty">&times;1</span></span>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="footer">
+          <span class="value">Scheduled</span>
+          <button class="btn">Update status <span class="chev">▾</span></button>
+        </div>
+      </div>
+
+      <!-- Card 2 (dropdown shown open) -->
+      <div class="card">
+        <div class="headerRow">
+          <span class="wo">JOB-0362-BX7Q</span>
+          <span class="badge">Annual Service</span>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <span class="label">Customer</span>
+          <span class="value">Tay Valley Estates</span>
+        </div>
+        <div class="section">
+          <span class="label">Address</span>
+          <a class="value" href="#">12 Glasclune Road, Perth, PH2 7BX</a>
+        </div>
+        <div class="section">
+          <span class="label">Start Date &amp; Time</span>
+          <span class="value">Wed, 03 Jun 2026, 14:30</span>
+        </div>
+        <div class="section">
+          <span class="label">Products Needed</span>
+          <div class="products">
+            <span class="product">Service Filter Set <span class="qty">&times;2</span></span>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="footer">
+          <span class="value">Traveling</span>
+          <div class="menuwrap">
+            <button class="btn">Update status <span class="chev">▴</span></button>
+            <div class="menu">
+              <div class="menuitem">Traveling</div>
+              <div class="menuitem">In Progress</div>
+              <div class="menuitem">Cancelled</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <div class="caption">Static mock of the Booking Card List PCF — phone form factor. Card 2 shows the status dropdown open.</div>
+</body>
+</html>
