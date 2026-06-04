@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Booking Card List — Install &amp; Configuration</title>
+<link rel="stylesheet" href="assets/proximo3.css" />
+<style>
+  body{background:var(--p3-grey-100);margin:0;}
+  .doc{max-width:880px;margin:0 auto;background:var(--p3-white);box-shadow:var(--p3-shadow-card);}
+  .hero{background:var(--p3-charcoal);color:var(--p3-white);padding:38px 52px 30px;}
+  .hero .logo{height:32px;display:block;margin-bottom:22px;}
+  .hero .eyebrow{font-family:var(--p3-font-accent);text-transform:uppercase;letter-spacing:.14em;font-size:.82rem;font-weight:700;color:var(--p3-white);opacity:.72;}
+  .hero h1{color:var(--p3-white);font-size:2rem;margin:.25rem 0 0;}
+  .hero .meta{margin-top:8px;color:#c9cace;font-size:.9rem;font-family:var(--p3-font-accent);letter-spacing:.04em;text-transform:uppercase;}
+  .hero .p3-rule{margin-top:18px;}
+  .content{padding:30px 52px 8px;}
+  .lead{font-size:1.05rem;color:var(--p3-ink);}
+  nav.toc{border:1px solid var(--p3-border);border-radius:var(--p3-radius);padding:16px 20px;margin:22px 0;background:var(--p3-grey-100);}
+  nav.toc .eyebrow{display:block;margin-bottom:8px;}
+  nav.toc ol{margin:0;padding-left:20px;columns:2;column-gap:30px;}
+  nav.toc a{color:var(--p3-red);}
+  h2{font-size:1.5rem;margin:36px 0 4px;scroll-margin-top:14px;}
+  h2 .num{font-family:var(--p3-font-accent);color:var(--p3-red);margin-right:.5rem;}
+  h2 + .underrule{height:4px;width:56px;background:var(--p3-red);border-radius:2px;margin-bottom:12px;}
+  h3{margin:22px 0 4px;}
+  p,li{color:var(--p3-ink);}
+  code{font-family:ui-monospace,"Cascadia Code",Consolas,monospace;background:#f3eef0;color:#b00d2c;padding:1px 6px;border-radius:5px;font-size:.86em;}
+  pre{background:var(--p3-charcoal);color:#f1f1f1;border-radius:var(--p3-radius);padding:14px 16px;overflow-x:auto;font-family:ui-monospace,Consolas,monospace;font-size:.85rem;line-height:1.5;}
+  pre code{background:none;color:inherit;padding:0;}
+  table{width:100%;border-collapse:collapse;margin:14px 0;border:1px solid var(--p3-border);border-radius:var(--p3-radius);overflow:hidden;}
+  th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--p3-border);font-size:.93rem;vertical-align:top;}
+  thead th{background:var(--p3-red);color:var(--p3-white);font-family:var(--p3-font-display);font-weight:700;font-size:.82rem;text-transform:uppercase;letter-spacing:.04em;}
+  tbody tr:nth-child(even){background:#faf7f8;}
+  tbody tr:last-child td{border-bottom:none;}
+  td code{white-space:nowrap;}
+  .callout{border-radius:var(--p3-radius);padding:12px 16px;margin:14px 0;font-size:.93rem;border-left:4px solid;}
+  .callout.note{background:var(--p3-grey-100);border-color:var(--p3-charcoal);}
+  .callout.tip{background:#fdeef1;border-color:var(--p3-red);}
+  .callout.warn{background:#fdeef1;border-color:var(--p3-red);}
+  .callout .h{font-family:var(--p3-font-display);font-weight:700;color:var(--p3-ink);}
+  .p3-img-placeholder{margin:16px 0 6px;}
+  .figblock{margin:18px 0;}
+  ul.tight li{margin:3px 0;}
+  .kbd{font-family:ui-monospace,Consolas,monospace;background:#fff;border:1px solid #ccc;border-bottom-width:2px;border-radius:4px;padding:0 5px;font-size:.82em;}
+  footer.brandfoot{background:var(--p3-charcoal);color:#c9cace;padding:24px 52px;margin-top:34px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+  footer.brandfoot img{height:26px;}
+  footer.brandfoot .c{font-size:.85rem;}
+  footer.brandfoot a{color:#fff;}
+  @media print{
+    body{background:#fff;} .doc{box-shadow:none;max-width:none;}
+    .hero,footer.brandfoot{background:#2D2E35 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    thead th{background:#EE163B !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    nav.toc{display:none;}
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <header class="hero">
+    <img class="logo" src="assets/logo/proximo3-logo-inverted.svg" alt="Proximo 3" />
+    <span class="eyebrow">Field Service · PCF Control</span>
+    <h1>Booking Card List — Install &amp; Configuration</h1>
+    <div class="meta">Proximo 3 &nbsp;·&nbsp; Version 0.0.16 &nbsp;·&nbsp; June 2026</div>
+    <hr class="p3-rule" />
+  </header>
+
+  <div class="content">
+
+    <p class="lead">Booking Card List replaces a standard subgrid of Bookable Resource Bookings with a
+    touch-friendly card board for the Field Service mobile app. This guide covers prerequisites, adding the
+    control to a form, and every configuration property. For day-to-day use by engineers, see the
+    <b>Booking Card List — User Guide</b>.</p>
+
+    <nav class="toc">
+      <span class="eyebrow">Contents</span>
+      <ol>
+        <li><a href="#overview">Overview</a></li>
+        <li><a href="#prereq">Prerequisites</a></li>
+        <li><a href="#setup">Setup — add to a form</a></li>
+        <li><a href="#config">Configuration properties</a></li>
+        <li><a href="#views">Tabs &amp; views</a></li>
+        <li><a href="#custom">Custom fields</a></li>
+        <li><a href="#trouble">Troubleshooting</a></li>
+        <li><a href="#support">Support &amp; contact</a></li>
+        <li><a href="#version">Version</a></li>
+      </ol>
+    </nav>
+
+    <h2 id="overview"><span class="num">01</span>Overview</h2>
+    <div class="underrule"></div>
+    <p>The control shows each Bookable Resource Booking as a card — work order number, incident type, customer,
+    address (as a maps link), start time, estimated travel, products needed, and the booking status with an inline
+    <b>Update status</b> dropdown. Cards are grouped into three tabs (by default <b>Today / Tomorrow / Complete</b>)
+    and laid out responsively. All reads and writes use <code>context.webAPI</code>, so the control also works in the
+    Field Service mobile app while offline.</p>
+
+    <h2 id="prereq"><span class="num">02</span>Prerequisites</h2>
+    <div class="underrule"></div>
+    <ul class="tight">
+      <li>A Dynamics 365 <b>Field Service</b> environment with Bookable Resource Bookings and Work Orders.</li>
+      <li>The <b>Booking Card List</b> control imported into the environment (solution <i>Proximo3 Custom Controls</i>).</li>
+      <li>Three saved views of Bookable Resource Bookings (see <a href="#views">Tabs &amp; views</a>).</li>
+      <li>Maker access to the form or custom page used by the mobile app, and permission to publish.</li>
+      <li>For offline use: the relevant tables in the mobile <b>offline profile</b> (the default FS profile already includes them).</li>
+    </ul>
+
+    <h2 id="setup"><span class="num">03</span>Setup — add it to a form</h2>
+    <div class="underrule"></div>
+    <ol>
+      <li>Open the form or custom page used by the mobile app and add a <b>Bookable Resource Booking</b> subgrid
+          (or set the control as a view's grid control).</li>
+      <li>Select the subgrid → <b>Components</b> → <b>+ Add component</b> → <b>Booking Card List</b>.</li>
+      <li>Enable it for the <b>Phone</b> form factor (and Web / Tablet if wanted).</li>
+      <li>Set the properties in section 4.</li>
+      <li><b>Save</b>, then <b>Publish</b>.</li>
+    </ol>
+
+    <div class="figblock">
+      <div class="p3-img-placeholder">
+        <div class="label">[ Image Placeholder ]</div>
+        <div class="desc">Screenshot of the form designer Components panel with “Booking Card List” selected and
+        added to a Bookable Resource Booking subgrid, with the Phone form factor enabled.</div>
+      </div>
+      <div class="p3-figcaption">Figure 1: Adding the control to a subgrid.</div>
+    </div>
+
+    <div class="callout note"><span class="h">Note.</span> The three tabs run their own saved views, so the view
+    you place the control on does not drive the card content — you can bind it to anything.</div>
+
+    <h2 id="config"><span class="num">04</span>Configuration properties</h2>
+    <div class="underrule"></div>
+    <p>All properties are optional. Set them in the control's <b>Properties</b> pane in the form / app designer.</p>
+    <table>
+      <thead><tr><th>Property</th><th>Type</th><th>Default</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td>Bookings</td><td>Dataset</td><td>—</td><td>The bound Bookable Resource Booking dataset (used by the built-in fallback mode).</td></tr>
+        <tr><td>Tab 1 Name</td><td>Text</td><td><code>Today</code></td><td>Label for tab 1.</td></tr>
+        <tr><td>Tab 2 Name</td><td>Text</td><td><code>Tomorrow</code></td><td>Label for tab 2.</td></tr>
+        <tr><td>Tab 3 Name</td><td>Text</td><td><code>Complete</code></td><td>Label for tab 3.</td></tr>
+        <tr><td>Custom Status Option Name</td><td>Text</td><td>—</td><td>Adds an extra option to the status dropdown. Blank hides it.</td></tr>
+        <tr><td>Custom: Booking Status (GUID)</td><td>Text</td><td>—</td><td><code>bookingstatus</code> record GUID set on the booking when the custom option is chosen.</td></tr>
+        <tr><td>Custom: Work Order Sub-Status (GUID)</td><td>Text</td><td>—</td><td><code>msdyn_workordersubstatus</code> record GUID set on the work order when the custom option is chosen.</td></tr>
+        <tr><td>Extra Field 1 / 2 / 3</td><td>Text</td><td>—</td><td>A column to show on the card (value only). See <a href="#custom">Custom fields</a>.</td></tr>
+        <tr><td>Custom Fields Heading</td><td>Text</td><td>—</td><td>Optional single heading above the custom values; shows only when at least one value is present.</td></tr>
+        <tr><td>Maps Provider</td><td>Choice</td><td><code>Google</code></td><td>Which maps app the address opens: Google, Bing, or Apple.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="views"><span class="num">05</span>Tabs &amp; views</h2>
+    <div class="underrule"></div>
+    <p>The three tabs run three <b>system views</b> of Bookable Resource Bookings, matched <b>by name</b>. The names
+    are fixed in the control:</p>
+    <pre><code>My Bookings - Today
+My Bookings - Tomorrow
+My Bookings - Completed</code></pre>
+    <ul class="tight">
+      <li>Create those three views, filtered however you like (e.g. current user's resource and date range, or
+          completed in the last N days). The control reads each view's FetchXML and runs it, so each tab reflects
+          exactly that view's filter and sort.</li>
+      <li>The <b>Tab 1/2/3 Name</b> properties change only the labels, not which view runs.</li>
+    </ul>
+    <div class="callout tip"><span class="h">Tip.</span> If a tab is empty, the view name almost certainly does not
+    match exactly — check for a hyphen vs en-dash and stray spaces.</div>
+
+    <h2 id="custom"><span class="num">06</span>Custom fields</h2>
+    <div class="underrule"></div>
+    <p><b>Extra Field 1–3</b> show up to three extra columns on each card. Enter a column <b>logical name</b>; the
+    field's value is shown (no caption), and the row is hidden when the property is blank or the value is empty.</p>
+    <ul class="tight">
+      <li>Default source is the <b>booking</b> (<code>bookableresourcebooking</code>) — e.g. <code>prx3_priority</code>.</li>
+      <li>Prefix with <code>workorder.</code> (or <code>wo.</code>) to read from the related <b>Work Order</b>, e.g.
+          <code>workorder.msdyn_instructions</code>.</li>
+      <li>For a <b>lookup</b> column, enter its <code>_logicalname_value</code> form (e.g. <code>_prx3_site_value</code>).</li>
+      <li>Set <b>Custom Fields Heading</b> to show one caption (styled like <i>Est. Travel</i>) above the values.</li>
+    </ul>
+    <div class="callout warn"><span class="h">Important.</span> The prefix is a fixed keyword —
+    <code>workorder</code>/<code>wo</code> or <code>booking</code>/<code>brb</code> — not the table's logical name.
+    Use <code>workorder.msdyn_instructions</code>, not <code>msdyn_workorder.msdyn_instructions</code>.</div>
+    <table>
+      <thead><tr><th>You enter</th><th>Shows</th></tr></thead>
+      <tbody>
+        <tr><td><code>workorder.msdyn_instructions</code></td><td>The work order's Instructions text.</td></tr>
+        <tr><td><code>prx3_priority</code></td><td>The booking's Priority choice (formatted label).</td></tr>
+        <tr><td><code>_prx3_site_value</code></td><td>The booking's Site lookup (the related record's name).</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="trouble"><span class="num">07</span>Troubleshooting</h2>
+    <div class="underrule"></div>
+    <table>
+      <thead><tr><th>Issue</th><th>Resolution</th></tr></thead>
+      <tbody>
+        <tr><td>A tab is empty</td><td>The view name does not match the fixed names exactly (hyphen vs en-dash, spaces). Fix the view name.</td></tr>
+        <tr><td>A custom field does not show</td><td>Check the column logical name and prefix (<code>workorder.</code> for work order fields); confirm the record has a value. Lookups need the <code>_logicalname_value</code> form.</td></tr>
+        <tr><td>Changes do not appear after deploy</td><td>The mobile app caches control bundles — hard-refresh (<span class="kbd">Ctrl</span>+<span class="kbd">Shift</span>+<span class="kbd">R</span>) or reopen the app. The version is raised each release to clear the cache.</td></tr>
+        <tr><td>Errors are not visible</td><td>The control logs <code>[BookingCardList] …</code> to the browser console (F12) and shows a red banner on the card area.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="support"><span class="num">08</span>Support &amp; contact</h2>
+    <div class="underrule"></div>
+    <p>For help with this control, contact your Proximo 3 administrator or the Proximo 3 team at
+    <a href="https://proximo3.com">proximo3.com</a>.</p>
+    <div class="callout note"><span class="h">To confirm.</span> Add the specific support mailbox / channel your
+    organisation uses (this placeholder avoids stating a contact that may not exist).</div>
+
+    <h2 id="version"><span class="num">09</span>Version</h2>
+    <div class="underrule"></div>
+    <table>
+      <thead><tr><th>Version</th><th>Date</th><th>Summary</th></tr></thead>
+      <tbody>
+        <tr><td>0.0.16</td><td>June 2026</td><td>Status spinner; reason-specific lock labels (Complete / Other Open Job).</td></tr>
+        <tr><td>0.0.15</td><td>June 2026</td><td>Optional shared heading above custom fields.</td></tr>
+        <tr><td>0.0.14</td><td>June 2026</td><td>Three configurable custom fields.</td></tr>
+        <tr><td>0.0.13</td><td>—</td><td>Base control: tabbed booking cards, inline status, maps links.</td></tr>
+      </tbody>
+    </table>
+
+  </div>
+
+  <footer class="brandfoot">
+    <img src="assets/logo/proximo3-logo-inverted.svg" alt="Proximo 3" />
+    <div class="c">Booking Card List · <code style="background:#3a3b42;color:#fff">Proximo3.FieldService.BookingCardList</code> · Install &amp; Configuration · <a href="https://proximo3.com">proximo3.com</a></div>
+  </footer>
+
+</div>
+</body>
+</html>

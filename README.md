@@ -7,8 +7,19 @@ booking's status inline.
 
 - **Control:** `Proximo3.FieldService.BookingCardList`
 - **Publisher prefix:** `prx3`
-- **Current version:** `0.0.14`
+- **Current version:** `0.0.16`
 - **Platform libraries:** React 16.14 + Fluent UI v9 (provided by the platform — not bundled)
+
+---
+
+## Documentation
+
+Branded HTML guides (open in a browser — GitHub shows raw HTML when a file is clicked):
+
+- **[User Guide](BookingCardList/docs/User-Guide.html)** — for engineers: using the booking board day to day.
+- **[Install & Configuration](BookingCardList/docs/Install-and-Configuration.html)** — for makers/admins: setup and every property.
+
+> The proprietary brand fonts (Gotham HTF / Agency FB) are omitted from this public repo for licensing; the guides fall back to Montserrat.
 
 ---
 
