@@ -7,7 +7,7 @@ booking's status inline.
 
 - **Control:** `Proximo3.FieldService.BookingCardList`
 - **Publisher prefix:** `prx3`
-- **Current version:** `0.0.13`
+- **Current version:** `0.0.14`
 - **Platform libraries:** React 16.14 + Fluent UI v9 (provided by the platform — not bundled)
 
 ---
@@ -36,8 +36,13 @@ Behaviour:
 - **Update status** dropdown → Traveling / In Progress / Cancelled, plus an optional
   **custom** option you configure. Selecting one writes the booking's status (and, for the
   custom option, the work order's sub-status).
-- **Active-job lock** — if any loaded booking is **Traveling** or **In Progress**, the status
-  dropdown on every *other* card is disabled ("Locked") until that job is finished.
+- **Active-job focus lock** — while any loaded booking is **Traveling** or **In Progress**, every
+  *other* non-terminal card is fully locked: it **cannot be opened** and its status dropdown is
+  disabled ("Locked") — including bookings on the *Tomorrow* tab. The active job itself stays
+  open/editable so it can be progressed or completed.
+- **Completed / Cancelled are terminal** — their status can no longer be changed, but the card can
+  still be opened to view the record.
+- **Custom fields** — up to three extra columns can be shown on each card (see [Custom fields](#custom-fields)).
 - **Modern theming** — follows the app's theme, including modern theme overrides and dark mode
   (via `context.fluentDesignLanguage.tokenTheme`).
 - **Responsive** — single column on a phone, multiple columns on a wide screen.
@@ -59,7 +64,22 @@ Set these in the form/subgrid designer when you add the control (App designer �
 | **Custom Status Option Name** | Text | Adds an extra option to the status dropdown. Leave blank to hide it. |
 | **Custom: Booking Status (GUID)** | Text | `bookingstatus` record GUID set on the booking when the custom option is chosen. |
 | **Custom: Work Order Sub-Status (GUID)** | Text | `msdyn_workordersubstatus` record GUID set on the work order when the custom option is chosen. |
+| **Extra Field 1 / 2 / 3 (column name)** | Text | Up to three extra columns to show on each card (value only). See [Custom fields](#custom-fields). |
 | **Maps Provider** | Choice | Which maps app the address opens: Google (default), Bing, or Apple. |
+
+### Custom fields
+
+`Extra Field 1..3` surface up to three extra columns on each card with no code change. Enter a
+column **logical name**; the field's **value** is shown (no caption), and the row is hidden when the
+property is blank or the value is empty.
+
+- Default source is the **booking** (`bookableresourcebooking`).
+- Prefix with `workorder.` (or `wo.`) to read from the related **Work Order** — e.g.
+  `workorder.prx3_riskcategory`. `booking.` / `brb.` is also accepted explicitly.
+- Choices, dates, money and similar render via their **formatted value** automatically. For a
+  **lookup** column, enter its `_logicalname_value` form (e.g. `_prx3_site_value`).
+- Custom fields are fetched in an isolated, FormattedValue-aware query: a typo'd/invalid name
+  degrades gracefully (that row is skipped) instead of breaking the card.
 
 ### Tabs & views
 
@@ -102,8 +122,9 @@ Work Order sub-statuses:
 3. **Tap the address** (the link with the 📍) to navigate in maps.
 4. **Update status** — pick Traveling / In Progress / Cancelled (or your custom option). The card
    refreshes to show the new status.
-5. While a job is **Traveling/In Progress**, other cards' status dropdowns are **locked** —
-   finish (or cancel) the active job first.
+5. While a job is **Traveling/In Progress**, other cards are **locked** — you can't open them or
+   change their status (even Tomorrow's) — finish (or cancel) the active job first. A **Completed**
+   job is read-only for status but can still be opened.
 
 ---
 
