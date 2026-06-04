@@ -1,9 +1,9 @@
 import * as React from "react";
 import {
-  Card, Text, Badge, Link,
+  Card, Text, Badge, Link, Spinner,
   makeStyles, mergeClasses, tokens,
 } from "@fluentui/react-components";
-import { BookingCardVM, STATUS_ACTIONS, StatusActionKey, StatusChoice } from "../types";
+import { BookingCardVM, STATUS_ACTIONS, StatusActionKey, StatusChoice, StatusLockReason } from "../types";
 
 type T = (key: string, fallback: string) => string;
 
@@ -126,7 +126,8 @@ const stop = (e: React.SyntheticEvent): void => e.stopPropagation();
 export interface BookingCardProps {
   vm: BookingCardVM;
   statusBusy: boolean;
-  statusDisabled: boolean;
+  /** Why status changes are locked, if at all (undefined = not locked). */
+  statusLockReason?: StatusLockReason;
   /** When true the card cannot be opened (another job is active). */
   openDisabled: boolean;
   /** Optional shared heading shown above the custom field values. */
@@ -141,9 +142,18 @@ export interface BookingCardProps {
 export const BookingCard: React.FC<BookingCardProps> = (props) => {
   const styles = useStyles();
   const {
-    vm, statusBusy, statusDisabled, openDisabled, extrasTitle, customStatusName,
+    vm, statusBusy, statusLockReason, openDisabled, extrasTitle, customStatusName,
     onOpen, onOpenMaps, onChangeStatus, t,
   } = props;
+  const statusDisabled = !!statusLockReason;
+  const lockedLabel =
+    statusLockReason === "complete"
+      ? t("StatusLockedComplete", "Locked (Complete)")
+      : t("StatusLockedOther", "Locked (Other Open Job)");
+  const lockedTitle =
+    statusLockReason === "complete"
+      ? t("StatusLockedCompleteTip", "This job is complete and can no longer be updated.")
+      : t("StatusLocked", "Finish the active job before updating others.");
 
   return (
     <Card
@@ -243,31 +253,31 @@ export const BookingCard: React.FC<BookingCardProps> = (props) => {
         <Text className={styles.value}>
           {vm.bookingStatusName || t("StatusUnknown", "No status")}
         </Text>
-        <select
-          className={styles.statusSelect}
-          value=""
-          disabled={statusBusy || statusDisabled}
-          title={statusDisabled ? t("StatusLocked", "Finish the active job before updating others.") : undefined}
-          aria-label={t("ChangeStatus", "Update status")}
-          onChange={(e) => {
-            const v = e.target.value;
-            if (v) onChangeStatus(v as StatusChoice);
-          }}
-        >
-          <option value="">
-            {statusBusy
-              ? t("Updating", "Updating…")
-              : statusDisabled
-              ? t("StatusLockedShort", "Locked")
-              : t("ChangeStatus", "Update status")}
-          </option>
-          {STATUS_ACTIONS.map((a) => (
-            <option key={a.key} value={a.key}>
-              {actionLabel(a.key, t)}
+        {statusBusy ? (
+          <Spinner size="tiny" labelPosition="after" label={t("Updating", "Updating…")} />
+        ) : (
+          <select
+            className={styles.statusSelect}
+            value=""
+            disabled={statusDisabled}
+            title={statusDisabled ? lockedTitle : undefined}
+            aria-label={t("ChangeStatus", "Update status")}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v) onChangeStatus(v as StatusChoice);
+            }}
+          >
+            <option value="">
+              {statusDisabled ? lockedLabel : t("ChangeStatus", "Update status")}
             </option>
-          ))}
-          {customStatusName ? <option value="custom">{customStatusName}</option> : null}
-        </select>
+            {STATUS_ACTIONS.map((a) => (
+              <option key={a.key} value={a.key}>
+                {actionLabel(a.key, t)}
+              </option>
+            ))}
+            {customStatusName ? <option value="custom">{customStatusName}</option> : null}
+          </select>
+        )}
       </div>
     </Card>
   );

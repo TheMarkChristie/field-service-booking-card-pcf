@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest>
-  <control namespace="Proximo3.FieldService" constructor="BookingCardList" version="0.0.15"
+  <control namespace="Proximo3.FieldService" constructor="BookingCardList" version="0.0.16"
     display-name-key="BookingCardList_Display" description-key="BookingCardList_Desc"
     control-type="virtual">
 

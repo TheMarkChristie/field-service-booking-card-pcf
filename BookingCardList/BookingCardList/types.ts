@@ -58,6 +58,9 @@ export interface CustomStatus {
 
 export type MapsProvider = "google" | "bing" | "apple";
 
+/** Why a card's status is locked: it is itself complete, or another job is active. */
+export type StatusLockReason = "complete" | "otherOpen";
+
 export interface ProductLine {
   id: string;
   name: string;

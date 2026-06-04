@@ -162,11 +162,13 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
   const isTerminal = (id: string) => TERMINAL_FS_STATUSES.has(details[id].fieldServiceStatus ?? -1);
   const anyActive = allIds.some(isActive);
 
-  // Status changes are blocked on terminal jobs, and on every other job while one is active.
-  // (The active job itself stays editable so it can be progressed/completed.)
-  const statusLockedIds = new Set(
-    allIds.filter((id) => isTerminal(id) || (anyActive && !isActive(id)))
-  );
+  // Status changes are blocked on terminal jobs ("complete"), and on every other job while one
+  // is active ("otherOpen"). Terminal wins. (The active job itself stays editable.)
+  const statusLockReasons: Record<string, "complete" | "otherOpen"> = {};
+  for (const id of allIds) {
+    if (isTerminal(id)) statusLockReasons[id] = "complete";
+    else if (anyActive && !isActive(id)) statusLockReasons[id] = "otherOpen";
+  }
   // Opening the record is blocked only on the non-active, non-terminal jobs while one is
   // active. The active job and any completed/cancelled job remain openable.
   const openLockedIds = new Set(
@@ -253,7 +255,7 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
       error={error}
       hasNextPage={!viewMode && !!dataset.paging?.hasNextPage}
       statusBusy={statusBusy}
-      statusLockedIds={statusLockedIds}
+      statusLockReasons={statusLockReasons}
       openLockedIds={openLockedIds}
       extrasTitle={extrasTitle}
       customStatusName={customStatus?.name}

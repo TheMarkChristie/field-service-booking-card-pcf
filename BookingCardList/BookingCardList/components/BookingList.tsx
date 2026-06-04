@@ -6,7 +6,7 @@ import {
 } from "@fluentui/react-components";
 import { BookingCard } from "./BookingCard";
 import { ErrorBoundary } from "./ErrorBoundary";
-import { BookingCardVM, StatusChoice } from "../types";
+import { BookingCardVM, StatusChoice, StatusLockReason } from "../types";
 
 type T = (key: string, fallback: string) => string;
 
@@ -92,7 +92,7 @@ export interface BookingListProps {
   error?: string;
   hasNextPage: boolean;
   statusBusy: Record<string, boolean>;
-  statusLockedIds?: Set<string>;
+  statusLockReasons?: Record<string, StatusLockReason>;
   openLockedIds?: Set<string>;
   extrasTitle?: string;
   customStatusName?: string;
@@ -165,7 +165,7 @@ export const BookingList: React.FC<BookingListProps> = (props) => {
                     key={id}
                     vm={vm}
                     statusBusy={!!statusBusy[id]}
-                    statusDisabled={!!props.statusLockedIds?.has(id)}
+                    statusLockReason={props.statusLockReasons?.[id]}
                     openDisabled={!!props.openLockedIds?.has(id)}
                     extrasTitle={props.extrasTitle}
                     customStatusName={props.customStatusName}
