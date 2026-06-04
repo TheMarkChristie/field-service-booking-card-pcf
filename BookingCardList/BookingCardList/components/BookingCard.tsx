@@ -129,6 +129,8 @@ export interface BookingCardProps {
   statusDisabled: boolean;
   /** When true the card cannot be opened (another job is active). */
   openDisabled: boolean;
+  /** Optional shared heading shown above the custom field values. */
+  extrasTitle?: string;
   customStatusName?: string;
   onOpen: () => void;
   onOpenMaps: () => void;
@@ -139,7 +141,7 @@ export interface BookingCardProps {
 export const BookingCard: React.FC<BookingCardProps> = (props) => {
   const styles = useStyles();
   const {
-    vm, statusBusy, statusDisabled, openDisabled, customStatusName,
+    vm, statusBusy, statusDisabled, openDisabled, extrasTitle, customStatusName,
     onOpen, onOpenMaps, onChangeStatus, t,
   } = props;
 
@@ -228,6 +230,7 @@ export const BookingCard: React.FC<BookingCardProps> = (props) => {
 
       {vm.extras.length > 0 ? (
         <div className={styles.section}>
+          {extrasTitle ? <Text className={styles.label}>{extrasTitle}</Text> : null}
           {vm.extras.map((v, i) => (
             <Text key={i} className={styles.value}>{v}</Text>
           ))}

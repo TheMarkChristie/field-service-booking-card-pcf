@@ -64,7 +64,8 @@ Set these in the form/subgrid designer when you add the control (App designer �
 | **Custom Status Option Name** | Text | Adds an extra option to the status dropdown. Leave blank to hide it. |
 | **Custom: Booking Status (GUID)** | Text | `bookingstatus` record GUID set on the booking when the custom option is chosen. |
 | **Custom: Work Order Sub-Status (GUID)** | Text | `msdyn_workordersubstatus` record GUID set on the work order when the custom option is chosen. |
-| **Extra Field 1 / 2 / 3 (column name)** | Text | Up to three extra columns to show on each card (value only). See [Custom fields](#custom-fields). |
+| **Extra Field 1 / 2 / 3 (column name)** | Text | Up to three extra columns to show on each card. See [Custom fields](#custom-fields). |
+| **Custom Fields Heading** | Text | Optional heading shown above the custom field values (one for all three); appears only when at least one value is present. |
 | **Maps Provider** | Choice | Which maps app the address opens: Google (default), Bing, or Apple. |
 
 ### Custom fields
@@ -80,6 +81,9 @@ property is blank or the value is empty.
   **lookup** column, enter its `_logicalname_value` form (e.g. `_prx3_site_value`).
 - Custom fields are fetched in an isolated, FormattedValue-aware query: a typo'd/invalid name
   degrades gracefully (that row is skipped) instead of breaking the card.
+- Set **Custom Fields Heading** to show a single caption (styled like *Est. Travel* / *Products
+  Needed*) above the values. The whole block — heading included — only renders when at least one
+  custom value is present.
 
 ### Tabs & views
 

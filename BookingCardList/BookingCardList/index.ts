@@ -40,6 +40,7 @@ export class BookingCardList
       customStatus: this.customStatus(context),
       mapsProvider: this.mapsProvider(context),
       extraFields: this.extraFields(context),
+      extrasTitle: (context.parameters.extraFieldsTitle?.raw ?? "").trim(),
       openItem: (id) => this.openItem(context, id),
       openUrl: (url) => context.navigation.openUrl(url),
       t: (key, fallback) => this.localize(context, key, fallback),

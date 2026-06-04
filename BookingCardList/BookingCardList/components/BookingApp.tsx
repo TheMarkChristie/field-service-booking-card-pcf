@@ -18,6 +18,7 @@ export interface BookingAppProps {
   customStatus?: CustomStatus;
   mapsProvider: MapsProvider;
   extraFields: ExtraFieldSpec[];
+  extrasTitle: string;
   openItem: (id: string) => void;
   openUrl: (url: string) => void;
   t: T;
@@ -28,7 +29,7 @@ const EMPTY_BY_TAB: string[][] = [[], [], []];
 export const BookingApp: React.FC<BookingAppProps> = (props) => {
   const {
     dataset, service, theme, defaultTabNames,
-    customStatus, mapsProvider, extraFields, openItem, openUrl, t,
+    customStatus, mapsProvider, extraFields, extrasTitle, openItem, openUrl, t,
   } = props;
 
   const idsKey = (dataset.sortedRecordIds ?? []).join(",");
@@ -254,6 +255,7 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
       statusBusy={statusBusy}
       statusLockedIds={statusLockedIds}
       openLockedIds={openLockedIds}
+      extrasTitle={extrasTitle}
       customStatusName={customStatus?.name}
       onLoadMore={onLoadMore}
       onOpen={onOpen}

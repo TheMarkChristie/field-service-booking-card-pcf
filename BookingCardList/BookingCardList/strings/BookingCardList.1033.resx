@@ -83,6 +83,8 @@
   <data name="ExtraField2_Display" xml:space="preserve"><value>Extra Field 2 (column name)</value></data>
   <data name="ExtraField3_Display" xml:space="preserve"><value>Extra Field 3 (column name)</value></data>
   <data name="ExtraField_Desc" xml:space="preserve"><value>Logical name of a column to show on the card (value only). Prefix with "workorder." for a Work Order field; default is the booking. Blank = not shown. For a lookup, use its "_logicalname_value" form.</value></data>
+  <data name="ExtraFieldsTitle_Display" xml:space="preserve"><value>Custom Fields Heading</value></data>
+  <data name="ExtraFieldsTitle_Desc" xml:space="preserve"><value>Optional heading shown above the custom field values (Extra Field 1-3). Only appears when at least one value is present. Blank = no heading.</value></data>
 
   <data name="MapsProvider_Display" xml:space="preserve"><value>Maps Provider</value></data>
   <data name="MapsProvider_Desc" xml:space="preserve"><value>Which maps app to open when the address is tapped.</value></data>

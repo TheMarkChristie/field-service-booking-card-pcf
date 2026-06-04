@@ -94,6 +94,7 @@ export interface BookingListProps {
   statusBusy: Record<string, boolean>;
   statusLockedIds?: Set<string>;
   openLockedIds?: Set<string>;
+  extrasTitle?: string;
   customStatusName?: string;
   onLoadMore: () => void;
   onOpen: (id: string) => void;
@@ -166,6 +167,7 @@ export const BookingList: React.FC<BookingListProps> = (props) => {
                     statusBusy={!!statusBusy[id]}
                     statusDisabled={!!props.statusLockedIds?.has(id)}
                     openDisabled={!!props.openLockedIds?.has(id)}
+                    extrasTitle={props.extrasTitle}
                     customStatusName={props.customStatusName}
                     onOpen={() => props.onOpen(id)}
                     onOpenMaps={() => props.onOpenMaps(id)}
