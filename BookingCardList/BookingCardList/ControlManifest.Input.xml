@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest>
-  <control namespace="Proximo3.FieldService" constructor="BookingCardList" version="0.0.17"
+  <control namespace="Proximo3.FieldService" constructor="BookingCardList" version="0.0.18"
     display-name-key="BookingCardList_Display" description-key="BookingCardList_Desc"
     control-type="virtual">
 
@@ -41,6 +41,12 @@
     <!-- Optional single heading shown above the custom field values (applies to all 3).
          Only appears when at least one custom value is present. Blank = no heading. -->
     <property name="extraFieldsTitle" display-name-key="ExtraFieldsTitle_Display" description-key="ExtraFieldsTitle_Desc"
+      of-type="SingleLine.Text" usage="input" required="false" />
+
+    <!-- Header badge: a column shown as a badge in the card header (e.g. Work Order job type,
+         domestic/commercial). Same prefix syntax as the custom fields: prefix workorder. for a
+         Work Order field, otherwise the booking. Lookups use "_logicalname_value". Blank = off. -->
+    <property name="headerField" display-name-key="HeaderField_Display" description-key="HeaderField_Desc"
       of-type="SingleLine.Text" usage="input" required="false" />
 
     <!-- Priority colours: colours the card's top border and shows a priority pill in the header,

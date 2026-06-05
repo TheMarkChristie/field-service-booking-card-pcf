@@ -41,6 +41,7 @@ export class BookingCardList
       mapsProvider: this.mapsProvider(context),
       extraFields: this.extraFields(context),
       extrasTitle: (context.parameters.extraFieldsTitle?.raw ?? "").trim(),
+      headerField: parseExtraField(context.parameters.headerField?.raw) ?? undefined,
       priorityColours: parsePriorityColours(context.parameters.priorityColours?.raw),
       openItem: (id) => this.openItem(context, id),
       openUrl: (url) => context.navigation.openUrl(url),

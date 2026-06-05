@@ -68,11 +68,21 @@ export class BookingDataService {
   }
 
   /** Fetch full card detail for a set of booking ids, returned in the input order. */
-  async getBookingDetails(bookingIds: string[], extraSpecs: ExtraFieldSpec[] = []): Promise<BookingCardVM[]> {
+  async getBookingDetails(
+    bookingIds: string[],
+    extraSpecs: ExtraFieldSpec[] = [],
+    headerSpec?: ExtraFieldSpec
+  ): Promise<BookingCardVM[]> {
     if (bookingIds.length === 0) return [];
 
     const bookingExtraFields = extraSpecs.filter((x) => x.table === "booking").map((x) => x.field);
     const woExtraFields = extraSpecs.filter((x) => x.table === "workorder").map((x) => x.field);
+    // The header badge field is fetched alongside the body extras, then rendered separately.
+    if (headerSpec) {
+      (headerSpec.table === "workorder" ? woExtraFields : bookingExtraFields).push(headerSpec.field);
+    }
+    const uniqBooking = [...new Set(bookingExtraFields)];
+    const uniqWo = [...new Set(woExtraFields)];
 
     const rows = new Map<string, BookingRow>();
     const workOrderIds = new Set<string>();
@@ -105,8 +115,8 @@ export class BookingDataService {
       this.getWorkOrders([...workOrderIds]),
       this.getWorkOrderProducts([...workOrderIds]),
       this.getStatusFsValues([...statusIds]),
-      this.getExtras(BOOKING, "bookableresourcebookingid", bookingIds, bookingExtraFields),
-      this.getExtras(WORKORDER, "msdyn_workorderid", [...workOrderIds], woExtraFields),
+      this.getExtras(BOOKING, "bookableresourcebookingid", bookingIds, uniqBooking),
+      this.getExtras(WORKORDER, "msdyn_workorderid", [...workOrderIds], uniqWo),
     ]);
 
     return bookingIds
@@ -127,12 +137,21 @@ export class BookingDataService {
             return rec?.[spec.field] ?? "";
           })
           .filter((v) => v !== "");
+        const headerRec = headerSpec
+          ? headerSpec.table === "workorder"
+            ? b.workOrderId
+              ? woExtras.get(b.workOrderId)
+              : undefined
+            : bookingExtras.get(id)
+          : undefined;
+        const headerBadge = headerSpec ? headerRec?.[headerSpec.field] ?? "" : "";
         return {
           bookingId: id,
           workOrderId: b.workOrderId,
           workOrderNumber: wo?.name ?? "(no work order)",
           serviceAccount: wo?.serviceAccount ?? "",
           incidentType: wo?.incidentType ?? "",
+          headerBadge,
           addressText: wo?.addressText ?? "",
           latitude: wo?.lat,
           longitude: wo?.lng,

@@ -37,6 +37,15 @@ const useStyles = makeStyles({
     columnGap: "8px",
     minWidth: 0,
   },
+  headerRight: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    flexWrap: "wrap",
+    columnGap: "6px",
+    rowGap: "4px",
+  },
   priorityPill: {
     flexShrink: 0,
     borderRadius: "999px",
@@ -213,11 +222,18 @@ export const BookingCard: React.FC<BookingCardProps> = (props) => {
             </span>
           ) : null}
         </div>
-        {vm.incidentType ? (
-          <Badge appearance="tint" color="brand" shape="rounded">
-            {vm.incidentType}
-          </Badge>
-        ) : null}
+        <div className={styles.headerRight}>
+          {vm.headerBadge ? (
+            <Badge appearance="outline" shape="rounded">
+              {vm.headerBadge}
+            </Badge>
+          ) : null}
+          {vm.incidentType ? (
+            <Badge appearance="tint" color="brand" shape="rounded">
+              {vm.incidentType}
+            </Badge>
+          ) : null}
+        </div>
       </div>
 
       <div className={styles.divider} />

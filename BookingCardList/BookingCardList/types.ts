@@ -74,6 +74,8 @@ export interface BookingCardVM {
   workOrderNumber: string;
   serviceAccount: string;
   incidentType: string;
+  /** Optional extra header badge value (e.g. Work Order job type), if configured. */
+  headerBadge: string;
   addressText: string;
   latitude?: number;
   longitude?: number;

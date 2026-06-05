@@ -19,6 +19,8 @@ export interface BookingAppProps {
   mapsProvider: MapsProvider;
   extraFields: ExtraFieldSpec[];
   extrasTitle: string;
+  /** Optional Work Order / booking field shown as a badge in the card header. */
+  headerField?: ExtraFieldSpec;
   priorityColours: Record<string, string>;
   openItem: (id: string) => void;
   openUrl: (url: string) => void;
@@ -30,7 +32,7 @@ const EMPTY_BY_TAB: string[][] = [[], [], []];
 export const BookingApp: React.FC<BookingAppProps> = (props) => {
   const {
     dataset, service, theme, defaultTabNames,
-    customStatus, mapsProvider, extraFields, extrasTitle, priorityColours, openItem, openUrl, t,
+    customStatus, mapsProvider, extraFields, extrasTitle, headerField, priorityColours, openItem, openUrl, t,
   } = props;
 
   const idsKey = (dataset.sortedRecordIds ?? []).join(",");
@@ -41,6 +43,8 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
   // depend on its contents, not its identity, and don't refetch on every render.
   const extraKey = extraFields.map((f) => `${f.table}.${f.field}`).join("|");
   const extraSpecs = React.useMemo(() => extraFields, [extraKey]);
+  const headerKey = headerField ? `${headerField.table}.${headerField.field}` : "";
+  const headerSpec = React.useMemo(() => headerField, [headerKey]);
 
   const [details, setDetails] = React.useState<Record<string, BookingCardVM>>({});
   const detailsRef = React.useRef(details);
@@ -67,12 +71,12 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
 
   const loadDetailsFor = React.useCallback(
     async (ids: string[]) => {
-      const vms = await service.getBookingDetails(ids, extraSpecs);
+      const vms = await service.getBookingDetails(ids, extraSpecs, headerSpec);
       const next: Record<string, BookingCardVM> = {};
       for (const vm of vms) next[vm.bookingId] = vm;
       setDetails(next);
     },
-    [service, extraSpecs]
+    [service, extraSpecs, headerSpec]
   );
 
   // VIEW MODE: load each configured view's booking ids, then detail for the union.
@@ -217,7 +221,7 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
           await service.setBookingStatus(id, statusId);
         }
 
-        const [vm] = await service.getBookingDetails([id], extraSpecs);
+        const [vm] = await service.getBookingDetails([id], extraSpecs, headerSpec);
         if (vm) setDetails((d) => ({ ...d, [id]: vm }));
 
         if (viewMode) {
@@ -232,7 +236,7 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
         setStatusBusy((s) => ({ ...s, [id]: false }));
       }
     },
-    [service, dataset, viewMode, customStatus, extraSpecs, t]
+    [service, dataset, viewMode, customStatus, extraSpecs, headerSpec, t]
   );
 
   const onChangeStatus = React.useCallback(

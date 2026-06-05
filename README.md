@@ -7,7 +7,7 @@ booking's status inline.
 
 - **Control:** `Proximo3.FieldService.BookingCardList`
 - **Publisher prefix:** `prx3`
-- **Current version:** `0.0.17`
+- **Current version:** `0.0.18`
 - **Platform libraries:** React 16.14 + Fluent UI v9 (provided by the platform — not bundled)
 
 ---
@@ -78,6 +78,7 @@ Set these in the form/subgrid designer when you add the control (App designer �
 | **Extra Field 1 / 2 / 3 (column name)** | Text | Up to three extra columns to show on each card. See [Custom fields](#custom-fields). |
 | **Custom Fields Heading** | Text | Optional heading shown above the custom field values (one for all three); appears only when at least one value is present. |
 | **Priority Colours** | Text | Colour the card's top border and show a priority pill, by Work Order priority (`msdyn_priority`). Format: `High=#D13438;Medium=#F7A600;Low=#107C10`. Blank = off. |
+| **Header Badge Field** | Text | A Work Order / booking column shown as a badge in the card header (e.g. job type — domestic/commercial). Prefix `workorder.` for a WO field; lookups use `_logicalname_value`. Blank = off. |
 | **Maps Provider** | Choice | Which maps app the address opens: Google (default), Bing, or Apple. |
 
 ### Custom fields
