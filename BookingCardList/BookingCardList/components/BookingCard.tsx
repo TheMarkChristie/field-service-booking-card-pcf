@@ -30,6 +30,24 @@ const useStyles = makeStyles({
     justifyContent: "space-between",
     columnGap: "8px",
   },
+  headerLeft: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    columnGap: "8px",
+    minWidth: 0,
+  },
+  priorityPill: {
+    flexShrink: 0,
+    borderRadius: "999px",
+    paddingTop: "2px",
+    paddingBottom: "2px",
+    paddingLeft: "8px",
+    paddingRight: "8px",
+    fontSize: tokens.fontSizeBase200,
+    fontWeight: tokens.fontWeightSemibold,
+    whiteSpace: "nowrap",
+  },
   woNumber: {
     fontWeight: tokens.fontWeightSemibold,
     fontSize: tokens.fontSizeBase400,
@@ -123,6 +141,15 @@ const actionLabel = (key: StatusActionKey, t: T): string => {
 
 const stop = (e: React.SyntheticEvent): void => e.stopPropagation();
 
+/** Pick black or white text for a given hex background, by perceived luminance. */
+const readableText = (bg: string): string => {
+  const m = /^#?([0-9a-f]{6})$/i.exec(bg.trim());
+  if (!m) return "#ffffff";
+  const n = parseInt(m[1], 16);
+  const lum = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+  return lum > 0.6 ? "#000000" : "#ffffff";
+};
+
 export interface BookingCardProps {
   vm: BookingCardVM;
   statusBusy: boolean;
@@ -132,6 +159,8 @@ export interface BookingCardProps {
   openDisabled: boolean;
   /** Optional shared heading shown above the custom field values. */
   extrasTitle?: string;
+  /** Lowercased priority-name → colour map (from the manifest). Empty = feature off. */
+  priorityColours?: Record<string, string>;
   customStatusName?: string;
   onOpen: () => void;
   onOpenMaps: () => void;
@@ -142,10 +171,15 @@ export interface BookingCardProps {
 export const BookingCard: React.FC<BookingCardProps> = (props) => {
   const styles = useStyles();
   const {
-    vm, statusBusy, statusLockReason, openDisabled, extrasTitle, customStatusName,
+    vm, statusBusy, statusLockReason, openDisabled, extrasTitle, priorityColours, customStatusName,
     onOpen, onOpenMaps, onChangeStatus, t,
   } = props;
   const statusDisabled = !!statusLockReason;
+
+  // Priority colouring (only when a colour map is configured). The top border takes the
+  // priority colour; the header shows a pill in that colour. Unmapped names get a neutral pill.
+  const priorityOn = !!vm.priorityName && !!priorityColours && Object.keys(priorityColours).length > 0;
+  const priorityColour = priorityOn ? priorityColours?.[vm.priorityName.toLowerCase()] : undefined;
   const lockedLabel =
     statusLockReason === "complete"
       ? t("StatusLockedComplete", "Locked (Complete)")
@@ -158,12 +192,27 @@ export const BookingCard: React.FC<BookingCardProps> = (props) => {
   return (
     <Card
       className={mergeClasses(styles.card, openDisabled && styles.cardLocked)}
+      style={priorityColour ? { borderTopColor: priorityColour } : undefined}
       onClick={openDisabled ? undefined : onOpen}
       aria-label={vm.workOrderNumber}
       title={openDisabled ? t("OpenLocked", "Finish the active job before opening another.") : undefined}
     >
       <div className={styles.headerRow}>
-        <Text className={styles.woNumber}>{vm.workOrderNumber}</Text>
+        <div className={styles.headerLeft}>
+          <Text className={styles.woNumber}>{vm.workOrderNumber}</Text>
+          {priorityOn ? (
+            <span
+              className={styles.priorityPill}
+              style={
+                priorityColour
+                  ? { backgroundColor: priorityColour, color: readableText(priorityColour) }
+                  : { backgroundColor: tokens.colorNeutralBackground3, color: tokens.colorNeutralForeground2 }
+              }
+            >
+              {vm.priorityName}
+            </span>
+          ) : null}
+        </div>
         {vm.incidentType ? (
           <Badge appearance="tint" color="brand" shape="rounded">
             {vm.incidentType}

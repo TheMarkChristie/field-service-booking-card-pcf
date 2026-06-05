@@ -86,6 +86,9 @@
   <data name="ExtraFieldsTitle_Display" xml:space="preserve"><value>Custom Fields Heading</value></data>
   <data name="ExtraFieldsTitle_Desc" xml:space="preserve"><value>Optional heading shown above the custom field values (Extra Field 1-3). Only appears when at least one value is present. Blank = no heading.</value></data>
 
+  <data name="PriorityColours_Display" xml:space="preserve"><value>Priority Colours</value></data>
+  <data name="PriorityColours_Desc" xml:space="preserve"><value>Colour the card top border and show a priority pill, by Work Order priority. Format: "Name=#hex" pairs separated by ";" e.g. High=#D13438;Medium=#F7A600;Low=#107C10. Blank = off.</value></data>
+
   <data name="MapsProvider_Display" xml:space="preserve"><value>Maps Provider</value></data>
   <data name="MapsProvider_Desc" xml:space="preserve"><value>Which maps app to open when the address is tapped.</value></data>
   <data name="MapsProvider_Google" xml:space="preserve"><value>Google Maps</value></data>

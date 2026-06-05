@@ -82,9 +82,26 @@ export interface BookingCardVM {
   travelText: string;
   bookingStatusName: string;
   fieldServiceStatus?: number;
+  /** Work Order priority name (from msdyn_priority), if any. */
+  priorityName: string;
   products: ProductLine[];
   /** Values of the configured custom fields, in manifest order, blanks removed. */
   extras: string[];
+}
+
+/** Parse the priorityColours manifest string ("High=#D13438;Medium=#F7A600") into a
+ *  lowercased-name → colour map. Accepts ';' or newline separators. */
+export function parsePriorityColours(raw: string | null | undefined): Record<string, string> {
+  const map: Record<string, string> = {};
+  (raw ?? "").split(/[;\n]/).forEach((pair) => {
+    const i = pair.indexOf("=");
+    if (i > 0) {
+      const name = pair.slice(0, i).trim().toLowerCase();
+      const colour = pair.slice(i + 1).trim();
+      if (name && colour) map[name] = colour;
+    }
+  });
+  return map;
 }
 
 /** A custom field configured in the manifest to show on the card. */

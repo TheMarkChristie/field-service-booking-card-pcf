@@ -26,6 +26,7 @@ interface WorkOrderInfo {
   serviceAccount: string;
   incidentType: string;
   addressText: string;
+  priority: string;
   lat?: number;
   lng?: number;
 }
@@ -140,6 +141,7 @@ export class BookingDataService {
           travelText: this.formatDuration(b.travelMinutes),
           bookingStatusName: b.statusName,
           fieldServiceStatus: b.statusId ? statusFs.get(b.statusId) : undefined,
+          priorityName: wo?.priority ?? "",
           products: b.workOrderId ? productsByWo.get(b.workOrderId) ?? [] : [],
           extras,
         };
@@ -222,7 +224,7 @@ export class BookingDataService {
       const filter = ids.map((id) => `msdyn_workorderid eq ${id}`).join(" or ");
       const options =
         "?$select=msdyn_workorderid,msdyn_name,_msdyn_serviceaccount_value," +
-        "_msdyn_primaryincidenttype_value,msdyn_address1,msdyn_city,msdyn_postalcode," +
+        "_msdyn_primaryincidenttype_value,_msdyn_priority_value,msdyn_address1,msdyn_city,msdyn_postalcode," +
         "msdyn_latitude,msdyn_longitude" +
         `&$filter=${filter}`;
       const res = await this.api.retrieveMultipleRecords(WORKORDER, options);
@@ -236,6 +238,7 @@ export class BookingDataService {
           name: (w.msdyn_name as string) || "",
           serviceAccount: (w[`_msdyn_serviceaccount_value${FV}`] as string) || "",
           incidentType: (w[`_msdyn_primaryincidenttype_value${FV}`] as string) || "",
+          priority: (w[`_msdyn_priority_value${FV}`] as string) || "",
           addressText,
           lat: typeof lat === "number" ? lat : undefined,
           lng: typeof lng === "number" ? lng : undefined,

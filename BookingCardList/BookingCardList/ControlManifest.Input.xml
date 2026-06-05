@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest>
-  <control namespace="Proximo3.FieldService" constructor="BookingCardList" version="0.0.16"
+  <control namespace="Proximo3.FieldService" constructor="BookingCardList" version="0.0.17"
     display-name-key="BookingCardList_Display" description-key="BookingCardList_Desc"
     control-type="virtual">
 
@@ -41,6 +41,12 @@
     <!-- Optional single heading shown above the custom field values (applies to all 3).
          Only appears when at least one custom value is present. Blank = no heading. -->
     <property name="extraFieldsTitle" display-name-key="ExtraFieldsTitle_Display" description-key="ExtraFieldsTitle_Desc"
+      of-type="SingleLine.Text" usage="input" required="false" />
+
+    <!-- Priority colours: colours the card's top border and shows a priority pill in the header,
+         based on the Work Order priority (msdyn_priority). Format: "Name=#hex" pairs separated by
+         ';' (e.g. High=#D13438;Medium=#F7A600;Low=#107C10). Blank = feature off. -->
+    <property name="priorityColours" display-name-key="PriorityColours_Display" description-key="PriorityColours_Desc"
       of-type="SingleLine.Text" usage="input" required="false" />
 
     <!-- Maps provider for the address deep-link -->
