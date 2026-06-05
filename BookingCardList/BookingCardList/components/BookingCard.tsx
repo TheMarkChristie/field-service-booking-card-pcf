@@ -3,7 +3,7 @@ import {
   Card, Text, Badge, Link, Spinner,
   makeStyles, mergeClasses, tokens,
 } from "@fluentui/react-components";
-import { BookingCardVM, STATUS_ACTIONS, StatusActionKey, StatusChoice, StatusLockReason } from "../types";
+import { BookingCardVM, STATUS_ACTIONS, StatusActionKey, StatusChoice, StatusLockReason, ACTIVE_FS_STATUSES } from "../types";
 
 type T = (key: string, fallback: string) => string;
 
@@ -200,6 +200,18 @@ export const BookingCard: React.FC<BookingCardProps> = (props) => {
       ? t("StatusLockedCompleteTip", "This job is complete and can no longer be updated.")
       : t("StatusLocked", "Finish the active job before updating others.");
 
+  // "Start Job" mode: this card is startable and not yet started (no active job). The control
+  // reads "Start Job" and offers only the start actions (Travelling / In Progress) + the custom
+  // option — not Cancelled. Once a job is active, the active card reverts to full "Update status".
+  const isActiveCard = ACTIVE_FS_STATUSES.has(vm.fieldServiceStatus ?? -1);
+  const startMode = !statusDisabled && !isActiveCard;
+  const statusActions = startMode ? STATUS_ACTIONS.filter((a) => a.key !== "cancelled") : STATUS_ACTIONS;
+  const placeholder = statusDisabled
+    ? lockedLabel
+    : startMode
+    ? t("StartJob", "Start Job")
+    : t("ChangeStatus", "Update status");
+
   return (
     <Card
       className={mergeClasses(styles.card, openDisabled && styles.cardLocked)}
@@ -334,10 +346,8 @@ export const BookingCard: React.FC<BookingCardProps> = (props) => {
               if (v) onChangeStatus(v as StatusChoice);
             }}
           >
-            <option value="">
-              {statusDisabled ? lockedLabel : t("ChangeStatus", "Update status")}
-            </option>
-            {STATUS_ACTIONS.map((a) => (
+            <option value="">{placeholder}</option>
+            {statusActions.map((a) => (
               <option key={a.key} value={a.key}>
                 {actionLabel(a.key, t)}
               </option>

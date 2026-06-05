@@ -7,7 +7,7 @@ booking's status inline.
 
 - **Control:** `Proximo3.FieldService.BookingCardList`
 - **Publisher prefix:** `prx3`
-- **Current version:** `0.0.19`
+- **Current version:** `0.0.20`
 - **Platform libraries:** React 16.14 + Fluent UI v9 (provided by the platform — not bundled)
 
 ---
@@ -52,7 +52,8 @@ Behaviour:
   locked. Starting a job opens that one and keeps the rest locked (their status dropdowns disable
   too, including the *Tomorrow* tab) until it is finished; completing it re-locks the others until
   the next is started. The status dropdown stays usable on a locked card so a job can be started
-  from it.
+  from it — before anything is started it reads **Start Job** (Travelling / In Progress / your
+  custom option — no Cancel).
 - **Completed / Cancelled are terminal** — their status can no longer be changed, but the card can
   still be opened to view the record.
 - **Custom fields** — up to three extra columns can be shown on each card (see [Custom fields](#custom-fields)).
