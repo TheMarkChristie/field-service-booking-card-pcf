@@ -164,8 +164,10 @@ export interface BookingCardProps {
   statusBusy: boolean;
   /** Why status changes are locked, if at all (undefined = not locked). */
   statusLockReason?: StatusLockReason;
-  /** When true the card cannot be opened (another job is active). */
+  /** When true the card cannot be opened (no job started yet, or another job is active). */
   openDisabled: boolean;
+  /** Tooltip explaining why opening is locked. */
+  openLockHint?: string;
   /** Optional shared heading shown above the custom field values. */
   extrasTitle?: string;
   /** Lowercased priority-name → colour map (from the manifest). Empty = feature off. */
@@ -180,7 +182,7 @@ export interface BookingCardProps {
 export const BookingCard: React.FC<BookingCardProps> = (props) => {
   const styles = useStyles();
   const {
-    vm, statusBusy, statusLockReason, openDisabled, extrasTitle, priorityColours, customStatusName,
+    vm, statusBusy, statusLockReason, openDisabled, openLockHint, extrasTitle, priorityColours, customStatusName,
     onOpen, onOpenMaps, onChangeStatus, t,
   } = props;
   const statusDisabled = !!statusLockReason;
@@ -204,7 +206,7 @@ export const BookingCard: React.FC<BookingCardProps> = (props) => {
       style={priorityColour ? { borderTopColor: priorityColour } : undefined}
       onClick={openDisabled ? undefined : onOpen}
       aria-label={vm.workOrderNumber}
-      title={openDisabled ? t("OpenLocked", "Finish the active job before opening another.") : undefined}
+      title={openDisabled ? (openLockHint ?? t("OpenLocked", "Finish the active job before opening another.")) : undefined}
     >
       <div className={styles.headerRow}>
         <div className={styles.headerLeft}>

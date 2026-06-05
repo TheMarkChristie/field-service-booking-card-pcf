@@ -174,11 +174,14 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
     if (isTerminal(id)) statusLockReasons[id] = "complete";
     else if (anyActive && !isActive(id)) statusLockReasons[id] = "otherOpen";
   }
-  // Opening the record is blocked only on the non-active, non-terminal jobs while one is
-  // active. The active job and any completed/cancelled job remain openable.
-  const openLockedIds = new Set(
-    anyActive ? allIds.filter((id) => !isActive(id) && !isTerminal(id)) : []
-  );
+  // Opening the record is blocked on every non-active, non-terminal job — including before any
+  // job has been started, so the day begins fully locked. Starting a job (Traveling / In Progress)
+  // unlocks that one; the active job and any completed/cancelled job remain openable. (The status
+  // dropdown stays usable when no job is active, so a job can be started from its locked card.)
+  const openLockedIds = new Set(allIds.filter((id) => !isActive(id) && !isTerminal(id)));
+  const openLockHint = anyActive
+    ? t("OpenLocked", "Finish the active job before opening another.")
+    : t("OpenLockedStart", "Set this job to Traveling or In Progress to open it.");
 
   const onOpen = React.useCallback((id: string) => openItem(id), [openItem]);
 
@@ -262,6 +265,7 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
       statusBusy={statusBusy}
       statusLockReasons={statusLockReasons}
       openLockedIds={openLockedIds}
+      openLockHint={openLockHint}
       extrasTitle={extrasTitle}
       priorityColours={priorityColours}
       customStatusName={customStatus?.name}

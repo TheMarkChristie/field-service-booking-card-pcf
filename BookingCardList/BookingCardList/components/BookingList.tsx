@@ -94,6 +94,7 @@ export interface BookingListProps {
   statusBusy: Record<string, boolean>;
   statusLockReasons?: Record<string, StatusLockReason>;
   openLockedIds?: Set<string>;
+  openLockHint?: string;
   extrasTitle?: string;
   priorityColours?: Record<string, string>;
   customStatusName?: string;
@@ -168,6 +169,7 @@ export const BookingList: React.FC<BookingListProps> = (props) => {
                     statusBusy={!!statusBusy[id]}
                     statusLockReason={props.statusLockReasons?.[id]}
                     openDisabled={!!props.openLockedIds?.has(id)}
+                    openLockHint={props.openLockHint}
                     extrasTitle={props.extrasTitle}
                     priorityColours={props.priorityColours}
                     customStatusName={props.customStatusName}
