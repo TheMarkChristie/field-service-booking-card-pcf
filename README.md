@@ -7,7 +7,7 @@ booking's status inline.
 
 - **Control:** `Proximo3.FieldService.BookingCardList`
 - **Publisher prefix:** `prx3`
-- **Current version:** `0.0.20`
+- **Current version:** `0.0.21`
 - **Platform libraries:** React 16.14 + Fluent UI v9 (provided by the platform — not bundled)
 
 ---
@@ -247,3 +247,4 @@ via `updateRecord` then re-query the affected booking.
 | Errors are invisible | The control logs `[BookingCardList] …` to the browser console (F12) and shows a red banner on the card area. |
 | Custom option doesn't write the WO status | Confirm the GUID is a `msdyn_workordersubstatus` record and the booking has a work order. If the write throws on the `msdyn_substatus` nav property, it may need PascalCase `msdyn_SubStatus`. |
 | Theme looks wrong | The control follows the app's modern theme; ensure the app uses the "new look". |
+

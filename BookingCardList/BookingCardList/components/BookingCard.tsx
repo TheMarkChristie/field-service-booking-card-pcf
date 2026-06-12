@@ -162,6 +162,8 @@ const readableText = (bg: string): string => {
 export interface BookingCardProps {
   vm: BookingCardVM;
   statusBusy: boolean;
+  /** True while another card's status change is committing — freeze this card meanwhile. */
+  boardBusy?: boolean;
   /** Why status changes are locked, if at all (undefined = not locked). */
   statusLockReason?: StatusLockReason;
   /** When true the card cannot be opened (no job started yet, or another job is active). */
@@ -182,10 +184,13 @@ export interface BookingCardProps {
 export const BookingCard: React.FC<BookingCardProps> = (props) => {
   const styles = useStyles();
   const {
-    vm, statusBusy, statusLockReason, openDisabled, openLockHint, extrasTitle, priorityColours, customStatusName,
+    vm, statusBusy, boardBusy, statusLockReason, openDisabled, openLockHint, extrasTitle, priorityColours, customStatusName,
     onOpen, onOpenMaps, onChangeStatus, t,
   } = props;
   const statusDisabled = !!statusLockReason;
+  // Another card is mid-commit: freeze this card so a second job can't be started in the gap.
+  const busyElsewhere = !!boardBusy && !statusBusy;
+  const openBlocked = openDisabled || busyElsewhere;
 
   // Priority colouring (only when a colour map is configured). The top border takes the
   // priority colour; the header shows a pill in that colour. Unmapped names get a neutral pill.
@@ -214,11 +219,17 @@ export const BookingCard: React.FC<BookingCardProps> = (props) => {
 
   return (
     <Card
-      className={mergeClasses(styles.card, openDisabled && styles.cardLocked)}
+      className={mergeClasses(styles.card, openBlocked && styles.cardLocked)}
       style={priorityColour ? { borderTopColor: priorityColour } : undefined}
-      onClick={openDisabled ? undefined : onOpen}
+      onClick={openBlocked ? undefined : onOpen}
       aria-label={vm.workOrderNumber}
-      title={openDisabled ? (openLockHint ?? t("OpenLocked", "Finish the active job before opening another.")) : undefined}
+      title={
+        openDisabled
+          ? openLockHint ?? t("OpenLocked", "Finish the active job before opening another.")
+          : busyElsewhere
+          ? t("Updating", "Updating…")
+          : undefined
+      }
     >
       <div className={styles.headerRow}>
         <div className={styles.headerLeft}>
@@ -338,7 +349,7 @@ export const BookingCard: React.FC<BookingCardProps> = (props) => {
           <select
             className={styles.statusSelect}
             value=""
-            disabled={statusDisabled}
+            disabled={statusDisabled || busyElsewhere}
             title={statusDisabled ? lockedTitle : undefined}
             aria-label={t("ChangeStatus", "Update status")}
             onChange={(e) => {

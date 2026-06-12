@@ -92,6 +92,8 @@ export interface BookingListProps {
   error?: string;
   hasNextPage: boolean;
   statusBusy: Record<string, boolean>;
+  /** True while any card's status change is in flight (freezes the rest). */
+  boardBusy?: boolean;
   statusLockReasons?: Record<string, StatusLockReason>;
   openLockedIds?: Set<string>;
   openLockHint?: string;
@@ -167,6 +169,7 @@ export const BookingList: React.FC<BookingListProps> = (props) => {
                     key={id}
                     vm={vm}
                     statusBusy={!!statusBusy[id]}
+                    boardBusy={!!props.boardBusy}
                     statusLockReason={props.statusLockReasons?.[id]}
                     openDisabled={!!props.openLockedIds?.has(id)}
                     openLockHint={props.openLockHint}

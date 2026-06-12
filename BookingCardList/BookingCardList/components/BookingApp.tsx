@@ -182,6 +182,9 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
   const openLockHint = anyActive
     ? t("OpenLocked", "Finish the active job before opening another.")
     : t("OpenLockedStart", "Set this job to Traveling or In Progress to open it.");
+  // While a status change is committing on any card, freeze the rest so a second job can't be
+  // started in the window before the started job is reflected as active (double-start race).
+  const boardBusy = Object.values(statusBusy).some(Boolean);
 
   const onOpen = React.useCallback((id: string) => openItem(id), [openItem]);
 
@@ -263,6 +266,7 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
       error={error}
       hasNextPage={!viewMode && !!dataset.paging?.hasNextPage}
       statusBusy={statusBusy}
+      boardBusy={boardBusy}
       statusLockReasons={statusLockReasons}
       openLockedIds={openLockedIds}
       openLockHint={openLockHint}
