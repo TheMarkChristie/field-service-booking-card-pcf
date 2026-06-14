@@ -72,13 +72,6 @@
   <data name="Tab3Name_Display" xml:space="preserve"><value>Tab 3 Name (default)</value></data>
   <data name="Tab3Name_Desc" xml:space="preserve"><value>Fallback name for tab 3. Overridden by env var prx3_BookingTab3Name. Defaults to Complete.</value></data>
 
-  <data name="CustomStatusName_Display" xml:space="preserve"><value>Custom Status Option Name</value></data>
-  <data name="CustomStatusName_Desc" xml:space="preserve"><value>Label for an extra option in the Update-status dropdown. Leave blank to hide it.</value></data>
-  <data name="CustomBookingStatusId_Display" xml:space="preserve"><value>Custom: Booking Status (GUID)</value></data>
-  <data name="CustomBookingStatusId_Desc" xml:space="preserve"><value>Booking Status record GUID to set on the booking when the custom option is chosen.</value></data>
-  <data name="CustomWorkOrderSubStatusId_Display" xml:space="preserve"><value>Custom: Work Order Sub-Status (GUID)</value></data>
-  <data name="CustomWorkOrderSubStatusId_Desc" xml:space="preserve"><value>Work Order Substatus record GUID to set on the work order when the custom option is chosen.</value></data>
-
   <data name="ExtraField1_Display" xml:space="preserve"><value>Extra Field 1 (column name)</value></data>
   <data name="ExtraField2_Display" xml:space="preserve"><value>Extra Field 2 (column name)</value></data>
   <data name="ExtraField3_Display" xml:space="preserve"><value>Extra Field 3 (column name)</value></data>

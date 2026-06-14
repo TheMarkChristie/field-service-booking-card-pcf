@@ -2,7 +2,7 @@ import * as React from "react";
 import { IInputs, IOutputs } from "./generated/ManifestTypes";
 import { BookingApp, BookingAppProps } from "./components/BookingApp";
 import { BookingDataService } from "./services/dataverse";
-import { CustomStatus, MapsProvider, ExtraFieldSpec, parseExtraField, parsePriorityColours } from "./types";
+import { MapsProvider, ExtraFieldSpec, parseExtraField, parsePriorityColours } from "./types";
 
 export class BookingCardList
   implements ComponentFramework.ReactControl<IInputs, IOutputs>
@@ -37,7 +37,6 @@ export class BookingCardList
         name(context.parameters.tab2Name?.raw, "Tomorrow"),
         name(context.parameters.tab3Name?.raw, "Complete"),
       ],
-      customStatus: this.customStatus(context),
       mapsProvider: this.mapsProvider(context),
       extraFields: this.extraFields(context),
       extrasTitle: (context.parameters.extraFieldsTitle?.raw ?? "").trim(),
@@ -70,18 +69,6 @@ export class BookingCardList
         entityId: bookingId,
       });
     }
-  }
-
-  private customStatus(context: ComponentFramework.Context<IInputs>): CustomStatus | undefined {
-    const name = (context.parameters.customStatusName?.raw ?? "").trim();
-    if (!name) return undefined;
-    const bookingStatusId = (context.parameters.customBookingStatusId?.raw ?? "").trim();
-    const workOrderSubStatusId = (context.parameters.customWorkOrderSubStatusId?.raw ?? "").trim();
-    return {
-      name,
-      bookingStatusId: bookingStatusId || undefined,
-      workOrderSubStatusId: workOrderSubStatusId || undefined,
-    };
   }
 
   private extraFields(context: ComponentFramework.Context<IInputs>): ExtraFieldSpec[] {

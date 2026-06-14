@@ -15,7 +15,6 @@ export interface BookingAppProps {
   service: BookingDataService;
   theme?: Theme;
   defaultTabNames: string[];
-  customStatus?: CustomStatus;
   mapsProvider: MapsProvider;
   extraFields: ExtraFieldSpec[];
   extrasTitle: string;
@@ -32,7 +31,7 @@ const EMPTY_BY_TAB: string[][] = [[], [], []];
 export const BookingApp: React.FC<BookingAppProps> = (props) => {
   const {
     dataset, service, theme, defaultTabNames,
-    customStatus, mapsProvider, extraFields, extrasTitle, headerField, priorityColours, openItem, openUrl, t,
+    mapsProvider, extraFields, extrasTitle, headerField, priorityColours, openItem, openUrl, t,
   } = props;
 
   const idsKey = (dataset.sortedRecordIds ?? []).join(",");
@@ -57,20 +56,19 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
   const [viewIdsByTab, setViewIdsByTab] = React.useState<string[][]>(EMPTY_BY_TAB);
   const [reloadToken, setReloadToken] = React.useState(0);
 
-  // Custom status comes from the Field Service Settings record when configured there, so the
-  // booking-status / sub-status GUIDs live with the environment; the manifest prop is a fallback.
-  const [settingsCustomStatus, setSettingsCustomStatus] = React.useState<CustomStatus | undefined>(undefined);
+  // The custom status option (label + booking status + work order sub-status) is read from the
+  // Field Service Settings record, so the GUIDs live with the environment.
+  const [effectiveCustomStatus, setEffectiveCustomStatus] = React.useState<CustomStatus | undefined>(undefined);
   React.useEffect(() => {
     let cancelled = false;
     void (async () => {
       const s = await service.getCustomStatusSettings();
-      if (!cancelled && s) setSettingsCustomStatus(s);
+      if (!cancelled && s) setEffectiveCustomStatus(s);
     })();
     return () => {
       cancelled = true;
     };
   }, [service]);
-  const effectiveCustomStatus = settingsCustomStatus ?? customStatus;
 
   // Tab config: labels from the manifest defaults, views hard-coded by name.
   const tabsConfig = React.useMemo(

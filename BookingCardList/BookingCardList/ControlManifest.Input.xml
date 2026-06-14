@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest>
-  <control namespace="Proximo3.FieldService" constructor="BookingCardList" version="0.0.22"
+  <control namespace="Proximo3.FieldService" constructor="BookingCardList" version="0.0.23"
     display-name-key="BookingCardList_Display" description-key="BookingCardList_Desc"
     control-type="virtual">
 
@@ -20,13 +20,10 @@
     <property name="tab3Name" display-name-key="Tab3Name_Display" description-key="Tab3Name_Desc"
       of-type="SingleLine.Text" usage="input" required="false" default-value="Complete" />
 
-    <!-- Optional custom status option in the Update-status dropdown -->
-    <property name="customStatusName" display-name-key="CustomStatusName_Display" description-key="CustomStatusName_Desc"
-      of-type="SingleLine.Text" usage="input" required="false" />
-    <property name="customBookingStatusId" display-name-key="CustomBookingStatusId_Display" description-key="CustomBookingStatusId_Desc"
-      of-type="SingleLine.Text" usage="input" required="false" />
-    <property name="customWorkOrderSubStatusId" display-name-key="CustomWorkOrderSubStatusId_Display" description-key="CustomWorkOrderSubStatusId_Desc"
-      of-type="SingleLine.Text" usage="input" required="false" />
+    <!-- The optional custom status option (label + booking status + work order sub-status) is
+         configured on the Field Service Settings record (msdyn_fieldservicesetting):
+         prx3_customstatuslabel, prx3_custombookingstatus, prx3_customworkordersubstatus.
+         It lives there so the GUIDs travel with the environment. -->
 
     <!-- Up to 3 extra columns to show on each card (value only, no caption). Enter a column
          logical name; prefix with "workorder." for a Work Order field (default is the booking).

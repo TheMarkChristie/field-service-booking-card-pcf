@@ -7,7 +7,7 @@ booking's status inline.
 
 - **Control:** `Proximo3.FieldService.BookingCardList`
 - **Publisher prefix:** `prx3`
-- **Current version:** `0.0.22`
+- **Current version:** `0.0.23`
 - **Platform libraries:** React 16.14 + Fluent UI v9 (provided by the platform — not bundled)
 
 ---
@@ -75,23 +75,21 @@ Set these in the form/subgrid designer when you add the control (App designer �
 | **Tab 1 Name (default)** | Text | Label for tab 1. Default `Today`. |
 | **Tab 2 Name (default)** | Text | Label for tab 2. Default `Tomorrow`. |
 | **Tab 3 Name (default)** | Text | Label for tab 3. Default `Complete`. |
-| **Custom Status Option Name** | Text | Adds an extra option to the status dropdown. Leave blank to hide it. |
-| **Custom: Booking Status (GUID)** | Text | `bookingstatus` record GUID set on the booking when the custom option is chosen. |
-| **Custom: Work Order Sub-Status (GUID)** | Text | `msdyn_workordersubstatus` record GUID set on the work order when the custom option is chosen. |
-
-> **Custom status via Field Service Settings (preferred).** Rather than baking the GUIDs into the
-> control config per environment, set them on the **Field Service Settings** record so they travel
-> with the environment (the same pattern the `EnsureSingleRunningBooking` plugin uses for its paused
-> sub-status). Add these to `msdyn_fieldservicesetting`: **`prx3_custombookingstatus`** (lookup →
-> `bookingstatus`), **`prx3_customworkordersubstatus`** (lookup → `msdyn_workordersubstatus`), and
-> optionally **`prx3_customstatuslabel`** (text; falls back to the booking-status name). When
-> `prx3_custombookingstatus` is set, the control uses Field Service Settings and **ignores the three
-> manifest `Custom*` properties** (which remain as a fallback for environments that haven't moved over).
 | **Extra Field 1 / 2 / 3 (column name)** | Text | Up to three extra columns to show on each card. See [Custom fields](#custom-fields). |
 | **Custom Fields Heading** | Text | Optional heading shown above the custom field values (one for all three); appears only when at least one value is present. |
 | **Priority Colours** | Text | Colour the card's top border and show a priority pill, by Work Order priority (`msdyn_priority`). Format: `High=#D13438;Medium=#F7A600;Low=#107C10`. Blank = off. |
 | **Header Badge Field** | Text | A Work Order / booking column shown as a badge in the card header (e.g. job type — domestic/commercial). Prefix `workorder.` for a WO field; lookups use `_logicalname_value`. Blank = off. |
 | **Maps Provider** | Choice | Which maps app the address opens: Google (default), Bing, or Apple. |
+
+> **Custom "Start Job" status — configured on Field Service Settings, not the control.** The extra
+> status option's label and target IDs are read from the **Field Service Settings** record
+> (`msdyn_fieldservicesetting`) so the GUIDs travel with the environment (the same pattern the
+> `EnsureSingleRunningBooking` plugin uses for its paused sub-status). Add these columns to
+> `msdyn_fieldservicesetting`: **`prx3_custombookingstatus`** (lookup → `bookingstatus`, required to
+> enable the option), **`prx3_customworkordersubstatus`** (lookup → `msdyn_workordersubstatus`,
+> optional), and **`prx3_customstatuslabel`** (text; falls back to the booking-status name). When
+> `prx3_custombookingstatus` is empty, the custom option is hidden. *(Before 0.0.23 these were three
+> manifest properties on the control; they were removed in 0.0.23 in favour of Field Service Settings.)*
 
 ### Custom fields
 
