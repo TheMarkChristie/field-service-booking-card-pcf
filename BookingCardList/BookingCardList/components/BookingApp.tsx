@@ -57,6 +57,21 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
   const [viewIdsByTab, setViewIdsByTab] = React.useState<string[][]>(EMPTY_BY_TAB);
   const [reloadToken, setReloadToken] = React.useState(0);
 
+  // Custom status comes from the Field Service Settings record when configured there, so the
+  // booking-status / sub-status GUIDs live with the environment; the manifest prop is a fallback.
+  const [settingsCustomStatus, setSettingsCustomStatus] = React.useState<CustomStatus | undefined>(undefined);
+  React.useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const s = await service.getCustomStatusSettings();
+      if (!cancelled && s) setSettingsCustomStatus(s);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [service]);
+  const effectiveCustomStatus = settingsCustomStatus ?? customStatus;
+
   // Tab config: labels from the manifest defaults, views hard-coded by name.
   const tabsConfig = React.useMemo(
     () =>
@@ -207,13 +222,13 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
       setStatusBusy((s) => ({ ...s, [id]: true }));
       try {
         if (action === "custom") {
-          if (!customStatus) return;
-          if (customStatus.bookingStatusId) {
-            await service.setBookingStatus(id, customStatus.bookingStatusId);
+          if (!effectiveCustomStatus) return;
+          if (effectiveCustomStatus.bookingStatusId) {
+            await service.setBookingStatus(id, effectiveCustomStatus.bookingStatusId);
           }
           const woId = detailsRef.current[id]?.workOrderId;
-          if (customStatus.workOrderSubStatusId && woId) {
-            await service.setWorkOrderSubStatus(woId, customStatus.workOrderSubStatusId);
+          if (effectiveCustomStatus.workOrderSubStatusId && woId) {
+            await service.setWorkOrderSubStatus(woId, effectiveCustomStatus.workOrderSubStatusId);
           }
         } else {
           const meta = STATUS_ACTIONS.find((a) => a.key === action);
@@ -242,7 +257,7 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
         setStatusBusy((s) => ({ ...s, [id]: false }));
       }
     },
-    [service, dataset, viewMode, customStatus, extraSpecs, headerSpec, t]
+    [service, dataset, viewMode, effectiveCustomStatus, extraSpecs, headerSpec, t]
   );
 
   const onChangeStatus = React.useCallback(
@@ -272,7 +287,7 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
       openLockHint={openLockHint}
       extrasTitle={extrasTitle}
       priorityColours={priorityColours}
-      customStatusName={customStatus?.name}
+      customStatusName={effectiveCustomStatus?.name}
       onLoadMore={onLoadMore}
       onOpen={onOpen}
       onOpenMaps={onOpenMaps}

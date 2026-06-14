@@ -1,4 +1,4 @@
-import { BookingCardVM, ProductLine, ExtraFieldSpec } from "../types";
+import { BookingCardVM, ProductLine, ExtraFieldSpec, CustomStatus } from "../types";
 
 type WebApi = ComponentFramework.WebApi;
 type Entity = ComponentFramework.WebApi.Entity;
@@ -376,6 +376,36 @@ export class BookingDataService {
     await this.api.updateRecord(WORKORDER, workOrderId, {
       "msdyn_substatus@odata.bind": `/msdyn_workordersubstatuses(${subStatusId})`,
     });
+  }
+
+  /**
+   * Read the custom-status configuration from the Field Service Settings record
+   * (msdyn_fieldservicesetting), so the booking status / sub-status GUIDs live with the
+   * environment (like the plugin's paused sub-status) instead of being baked into the
+   * control config per environment. Returns undefined when not configured.
+   */
+  async getCustomStatusSettings(): Promise<CustomStatus | undefined> {
+    try {
+      const res = await this.api.retrieveMultipleRecords(
+        "msdyn_fieldservicesetting",
+        "?$select=prx3_customstatuslabel,_prx3_custombookingstatus_value," +
+          "_prx3_customworkordersubstatus_value&$top=1"
+      );
+      if (!res.entities.length) return undefined;
+      const s = res.entities[0];
+      const bookingStatusId = (s._prx3_custombookingstatus_value as string) || undefined;
+      if (!bookingStatusId) return undefined; // feature not configured in this environment
+      const label = (s.prx3_customstatuslabel as string) || "";
+      const statusName = (s[`_prx3_custombookingstatus_value${FV}`] as string) || "";
+      return {
+        name: label || statusName || "Custom",
+        bookingStatusId,
+        workOrderSubStatusId: (s._prx3_customworkordersubstatus_value as string) || undefined,
+      };
+    } catch (e) {
+      console.warn("[BookingCardList] could not read custom status from Field Service Settings", e);
+      return undefined;
+    }
   }
 
   /** Find an active Booking Status record id by its Field Service Status value. */
