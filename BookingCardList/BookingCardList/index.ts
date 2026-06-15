@@ -32,6 +32,7 @@ export class BookingCardList
       service: this.service,
       theme: theme as BookingAppProps["theme"],
       defaultTabNames: [
+        name(context.parameters.activeTabName?.raw, "Active"),
         name(context.parameters.tab1Name?.raw, "Today"),
         name(context.parameters.tab2Name?.raw, "Tomorrow"),
         name(context.parameters.tab3Name?.raw, "Complete"),

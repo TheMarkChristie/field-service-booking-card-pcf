@@ -32,8 +32,8 @@ export const ACTIVE_FS_STATUSES = new Set<number>([
   FieldServiceStatus.InProgress,
 ]);
 
-export type BuiltinBucket = "today" | "tomorrow" | "complete";
-export const BUILTIN_BUCKETS: BuiltinBucket[] = ["today", "tomorrow", "complete"];
+export type BuiltinBucket = "active" | "today" | "tomorrow" | "complete";
+export const BUILTIN_BUCKETS: BuiltinBucket[] = ["active", "today", "tomorrow", "complete"];
 
 // How many days back the Complete tab shows finished (Completed/Cancelled) jobs. The control
 // queries the signed-in user's bookings itself (today, tomorrow, and finished jobs within this
@@ -130,8 +130,12 @@ export function parseExtraField(raw: string | null | undefined): ExtraFieldSpec 
   return { table: "booking", field: s };
 }
 
-/** Which built-in tab a booking belongs to (Complete wins over date). null if none. */
+/** Which built-in tab a booking belongs to. Active (Traveling/In Progress) wins, then Complete
+ *  (Completed/Cancelled), otherwise by start date. null if none. */
 export function bucketOf(vm: BookingCardVM, today: Date, tomorrow: Date): BuiltinBucket | null {
+  if (vm.fieldServiceStatus != null && ACTIVE_FS_STATUSES.has(vm.fieldServiceStatus)) {
+    return "active";
+  }
   if (vm.fieldServiceStatus != null && TERMINAL_FS_STATUSES.has(vm.fieldServiceStatus)) {
     return "complete";
   }

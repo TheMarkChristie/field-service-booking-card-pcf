@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest>
-  <control namespace="Proximo3.FieldService" constructor="BookingCardList" version="0.0.25"
+  <control namespace="Proximo3.FieldService" constructor="BookingCardList" version="0.0.26"
     display-name-key="BookingCardList_Display" description-key="BookingCardList_Desc"
     control-type="virtual">
 
@@ -12,7 +12,9 @@
     <data-set name="bookings" display-name-key="Bookings_Display" description-key="Bookings_Desc">
     </data-set>
 
-    <!-- Tab labels -->
+    <!-- Tab labels. Tabs in order: Active (started jobs), then tab1/2/3. -->
+    <property name="activeTabName" display-name-key="ActiveTabName_Display" description-key="ActiveTabName_Desc"
+      of-type="SingleLine.Text" usage="input" required="false" default-value="Active" />
     <property name="tab1Name" display-name-key="Tab1Name_Display" description-key="Tab1Name_Desc"
       of-type="SingleLine.Text" usage="input" required="false" default-value="Today" />
     <property name="tab2Name" display-name-key="Tab2Name_Display" description-key="Tab2Name_Desc"

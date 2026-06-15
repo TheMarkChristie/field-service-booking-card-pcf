@@ -63,9 +63,9 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
     };
   }, [service]);
 
-  // Tab labels come from the manifest defaults.
+  // Tab labels come from the manifest defaults. Tabs in order: Active, Today, Tomorrow, Complete.
   const tabNames = React.useMemo(
-    () => [0, 1, 2].map((i) => defaultTabNames[i] || `Tab ${i + 1}`),
+    () => [0, 1, 2, 3].map((i) => defaultTabNames[i] || `Tab ${i + 1}`),
     [defaultTabNames]
   );
 
@@ -104,12 +104,12 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
     };
   }, [reloadToken, service, loadDetailsFor]);
 
-  // Bucket the loaded bookings into Today / Tomorrow / Complete.
+  // Bucket the loaded bookings into Active / Today / Tomorrow / Complete.
   const idsByTab = React.useMemo(() => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-    const byTab: string[][] = [[], [], []];
+    const byTab: string[][] = [[], [], [], []];
     for (const id of bookingIds) {
       const vm = details[id];
       if (!vm) continue;
@@ -119,6 +119,14 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
     }
     return byTab;
   }, [bookingIds, details]);
+
+  // On first load, land on the Active tab if a job is already started, otherwise Today.
+  const tabInitialised = React.useRef(false);
+  React.useEffect(() => {
+    if (tabInitialised.current || loading || Object.keys(details).length === 0) return;
+    tabInitialised.current = true;
+    setActiveIndex((idsByTab[0]?.length ?? 0) > 0 ? 0 : 1);
+  }, [loading, details, idsByTab]);
 
   const tabs = tabNames.map((name, i) => ({
     key: String(i),

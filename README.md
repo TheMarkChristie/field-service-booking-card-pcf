@@ -7,7 +7,7 @@ booking's status inline.
 
 - **Control:** `Proximo3.FieldService.BookingCardList`
 - **Publisher prefix:** `prx3`
-- **Current version:** `0.0.25`
+- **Current version:** `0.0.26`
 - **Platform libraries:** React 16.14 + Fluent UI v9 (provided by the platform — not bundled)
 
 ---
@@ -40,9 +40,10 @@ Each booking renders as a card showing:
 
 Behaviour:
 
-- **Tabs** — *Today*, *Tomorrow*, *Complete*, each with a count badge. The control queries the
-  signed-in user's own bookings itself and sorts them into the three tabs — **no system views to
-  set up** (see [Tabs & how bookings are loaded](#tabs--how-bookings-are-loaded)).
+- **Tabs** — *Active*, *Today*, *Tomorrow*, *Complete*, each with a count badge. The control queries
+  the signed-in user's own bookings itself and sorts them into the tabs — **no system views to set
+  up** (see [Tabs & how bookings are loaded](#tabs--how-bookings-are-loaded)). The **Active** tab
+  holds the started (Traveling / In Progress) job and is shown first.
 - **Tap a card** → opens the booking record.
 - **Tap the address** → opens the native maps app at that location.
 - **Update status** dropdown → Traveling / In Progress / Cancelled, plus an optional
@@ -73,6 +74,7 @@ Set these in the form/subgrid designer when you add the control (App designer �
 
 | Property | Type | Purpose |
 |---|---|---|
+| **Active Tab Name (default)** | Text | Label for the first tab (the started Traveling/In Progress job). Default `Active`. |
 | **Tab 1 Name (default)** | Text | Label for tab 1. Default `Today`. |
 | **Tab 2 Name (default)** | Text | Label for tab 2. Default `Tomorrow`. |
 | **Tab 3 Name (default)** | Text | Label for tab 3. Default `Complete`. |
@@ -118,8 +120,11 @@ property is blank or the value is empty.
 2. It runs one query for that resource's bookings from `COMPLETE_WINDOW_DAYS` before today up to the
    end of tomorrow.
 3. [`bucketOf()`](BookingCardList/BookingCardList/types.ts) sorts each booking into a tab:
-   **Complete** if it's Completed/Cancelled, otherwise **Today** or **Tomorrow** by start date.
+   **Active** if it's Traveling/In Progress, then **Complete** if it's Completed/Cancelled,
+   otherwise **Today** or **Tomorrow** by start date.
 
+- The **Active** tab (first) holds the started job — a Traveling / In Progress booking, regardless of
+  its date. The control lands on this tab on open when a job is already started, otherwise on Today.
 - The **Complete** tab shows finished jobs from the last **`COMPLETE_WINDOW_DAYS`** days (default `7`,
   by job start date), set in [`BookingCardList/types.ts`](BookingCardList/BookingCardList/types.ts).
   Change it there and redeploy.
@@ -127,7 +132,7 @@ property is blank or the value is empty.
   content** — bind it to anything.
 - Requires `bookableresource` and `bookableresourcebooking` to be in the **mobile offline profile**
   (booking already is; add the resource table if it isn't) so it works offline.
-- The tab **labels** are still configurable via the Tab 1/2/3 Name properties.
+- The tab **labels** are configurable via the Active / Tab 1 / Tab 2 / Tab 3 Name properties.
 
 ### Getting the GUIDs for the custom option
 
