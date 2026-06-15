@@ -1,0 +1,170 @@
+/* ==========================================================================
+   Proximo 3 — Brand stylesheet
+   Drop this into any HTML page/artifact, then use the variables + classes.
+   Montserrat is loaded from Google Fonts (free); it is the official brand body
+   font and the working substitute for the Gotham HTF display font.
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
+
+/* Proprietary brand fonts (bundled in assets/fonts/). Relative paths assume the
+   fonts/ folder sits next to this stylesheet. For a single-file artifact that
+   can't reference external files, base64-embed the fonts instead (see html.md). */
+@font-face {
+  font-family: 'Gotham HTF';
+  src: url('./fonts/GothamHTF-Medium.otf') format('opentype');
+  font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Agency FB';
+  src: url('./fonts/AgencyFB-Bold.ttf') format('truetype');
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+
+:root {
+  /* --- Core brand palette --- */
+  --p3-red:        #EE163B;   /* primary accent — headings, links, key actions */
+  --p3-pink-mid:   #F47389;   /* secondary */
+  --p3-pink-light: #F8A1B1;   /* tertiary / soft fills, highlights */
+  --p3-charcoal:   #2D2E35;   /* brand dark — dark sections, logo wordmark */
+  --p3-ink:        #3C3C3C;   /* primary body/heading text on light */
+  --p3-white:      #FFFFFF;
+
+  /* --- Neutral ramp (from brand guidelines) --- */
+  --p3-grey-900: #2E2E2E;
+  --p3-grey-700: #505050;
+  --p3-grey-500: #727272;
+  --p3-grey-300: #D2D2D2;
+  --p3-grey-200: #E6E6E6;
+  --p3-grey-100: #F1F3F2;   /* page background tint */
+
+  /* --- Semantic tokens --- */
+  --p3-bg:            var(--p3-white);
+  --p3-bg-subtle:     var(--p3-grey-100);
+  --p3-bg-inverse:    var(--p3-charcoal);
+  --p3-text:          var(--p3-ink);
+  --p3-text-muted:    var(--p3-grey-500);
+  --p3-text-inverse:  var(--p3-white);
+  --p3-accent:        var(--p3-red);
+  --p3-border:        var(--p3-grey-200);
+  --p3-link:          var(--p3-red);
+
+  /* --- Type ---
+     Gotham HTF = headings/display (official header font).
+     Montserrat = body (official text font).
+     Agency FB  = logo wordmark + large display accents (numerals, eyebrows). Use sparingly.
+     Each falls back gracefully if the bundled font isn't available. */
+  --p3-font-display: 'Gotham HTF', 'Montserrat', system-ui, sans-serif;
+  --p3-font-body:    'Montserrat', system-ui, sans-serif;
+  --p3-font-accent:  'Agency FB', 'Gotham HTF', 'Montserrat', system-ui, sans-serif;
+
+  /* --- Shape & elevation (brand button uses Y+15 / blur 30 drop shadow) --- */
+  --p3-radius:    8px;
+  --p3-radius-lg: 16px;
+  --p3-shadow-button: 0 15px 30px rgba(45, 46, 53, 0.20);
+  --p3-shadow-card:   0 8px 24px rgba(45, 46, 53, 0.10);
+}
+
+/* --- Base --- */
+body {
+  font-family: var(--p3-font-body);
+  color: var(--p3-text);
+  background: var(--p3-bg);
+  line-height: 1.6;
+  font-weight: 400;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--p3-font-display);
+  color: var(--p3-ink);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+h1 { font-size: 2.2rem; color: var(--p3-red); }   /* primary heading = brand red */
+h2 { font-size: 1.6rem; }
+h3 { font-size: 1.25rem; font-weight: 600; }
+
+a { color: var(--p3-link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* --- Buttons --- */
+.p3-btn {
+  font-family: var(--p3-font-display);
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 0.75em 1.6em;
+  border-radius: var(--p3-radius);
+  border: none;
+  cursor: pointer;
+  display: inline-block;
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+}
+.p3-btn--primary {
+  background: var(--p3-red);
+  color: var(--p3-white);
+  box-shadow: var(--p3-shadow-button);
+}
+.p3-btn--primary:hover { transform: translateY(-1px); background: #d11233; }
+.p3-btn--secondary {
+  background: transparent;
+  color: var(--p3-red);
+  border: 2px solid var(--p3-red);
+}
+.p3-btn--secondary:hover { background: var(--p3-red); color: var(--p3-white); }
+.p3-btn--dark {
+  background: var(--p3-charcoal);
+  color: var(--p3-white);
+  box-shadow: var(--p3-shadow-button);
+}
+
+/* --- Cards & sections --- */
+.p3-card {
+  background: var(--p3-white);
+  border: 1px solid var(--p3-border);
+  border-radius: var(--p3-radius-lg);
+  box-shadow: var(--p3-shadow-card);
+  padding: 1.75rem;
+}
+.p3-section-dark {
+  background: var(--p3-charcoal);
+  color: var(--p3-text-inverse);
+}
+.p3-section-dark h1,
+.p3-section-dark h2,
+.p3-section-dark h3 { color: var(--p3-white); }
+
+/* --- Accents --- */
+.p3-rule { height: 4px; width: 64px; background: var(--p3-red); border: 0; border-radius: 2px; }
+.p3-eyebrow {
+  font-family: var(--p3-font-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--p3-red);
+}
+.p3-stat { font-family: var(--p3-font-accent); font-weight: 700; color: var(--p3-red); line-height: 1; }
+::selection { background: var(--p3-pink-light); color: var(--p3-ink); }
+
+/* --- Image placeholder ---
+   Every Proximo 3 deliverable marks where images go with a labelled box plus a
+   description (which doubles as alt text for whoever inserts the real image). */
+.p3-img-placeholder {
+  border: 2px dashed var(--p3-grey-300);
+  border-radius: var(--p3-radius);
+  background: var(--p3-grey-100);
+  padding: 28px;
+  text-align: center;
+  color: var(--p3-grey-500);
+}
+.p3-img-placeholder .label {
+  font-family: var(--p3-font-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: var(--p3-red);
+  font-size: 0.8rem;
+}
+.p3-img-placeholder .desc { margin-top: 8px; font-size: 0.92rem; color: var(--p3-grey-700); }
+.p3-figcaption { font-size: 0.85rem; color: var(--p3-text-muted); margin-top: 8px; }

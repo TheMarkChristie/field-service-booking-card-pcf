@@ -7,8 +7,19 @@ booking's status inline.
 
 - **Control:** `Proximo3.FieldService.BookingCardList`
 - **Publisher prefix:** `prx3`
-- **Current version:** `0.0.13`
+- **Current version:** `0.0.26`
 - **Platform libraries:** React 16.14 + Fluent UI v9 (provided by the platform — not bundled)
+
+---
+
+## Documentation
+
+Branded HTML guides (open in a browser — GitHub shows raw HTML when a file is clicked):
+
+- **[User Guide](BookingCardList/docs/User-Guide.html)** — for engineers: using the booking board day to day.
+- **[Install & Configuration](BookingCardList/docs/Install-and-Configuration.html)** — for makers/admins: setup and every property.
+
+> The proprietary brand fonts (Gotham HTF / Agency FB) are omitted from this public repo for licensing; the guides fall back to Montserrat.
 
 ---
 
@@ -29,15 +40,25 @@ Each booking renders as a card showing:
 
 Behaviour:
 
-- **Tabs** — *Today*, *Tomorrow*, *Complete*, each with a count badge. Each tab runs a
-  Bookable Resource Booking **view** (see [Tabs & views](#tabs--views)).
+- **Tabs** — *Active*, *Today*, *Tomorrow*, *Complete*, each with a count badge. The control queries
+  the signed-in user's own bookings itself and sorts them into the tabs — **no system views to set
+  up** (see [Tabs & how bookings are loaded](#tabs--how-bookings-are-loaded)). The **Active** tab
+  holds the started (Traveling / In Progress) job and is shown first.
 - **Tap a card** → opens the booking record.
 - **Tap the address** → opens the native maps app at that location.
 - **Update status** dropdown → Traveling / In Progress / Cancelled, plus an optional
   **custom** option you configure. Selecting one writes the booking's status (and, for the
   custom option, the work order's sub-status).
-- **Active-job lock** — if any loaded booking is **Traveling** or **In Progress**, the status
-  dropdown on every *other* card is disabled ("Locked") until that job is finished.
+- **Start-to-open focus lock** — jobs are **locked until you start one**. Every non-terminal card
+  **cannot be opened** until it is set to **Traveling** or **In Progress**, so the day begins fully
+  locked. Starting a job opens that one and keeps the rest locked (their status dropdowns disable
+  too, including the *Tomorrow* tab) until it is finished; completing it re-locks the others until
+  the next is started. The status dropdown stays usable on a locked card so a job can be started
+  from it — before anything is started it reads **Start Job** (Travelling / In Progress / your
+  custom option — no Cancel).
+- **Completed / Cancelled are terminal** — their status can no longer be changed, but the card can
+  still be opened to view the record.
+- **Custom fields** — up to three extra columns can be shown on each card (see [Custom fields](#custom-fields)).
 - **Modern theming** — follows the app's theme, including modern theme overrides and dark mode
   (via `context.fluentDesignLanguage.tokenTheme`).
 - **Responsive** — single column on a phone, multiple columns on a wide screen.
@@ -53,32 +74,65 @@ Set these in the form/subgrid designer when you add the control (App designer �
 
 | Property | Type | Purpose |
 |---|---|---|
+| **Active Tab Name (default)** | Text | Label for the first tab (the started Traveling/In Progress job). Default `Active`. |
 | **Tab 1 Name (default)** | Text | Label for tab 1. Default `Today`. |
 | **Tab 2 Name (default)** | Text | Label for tab 2. Default `Tomorrow`. |
 | **Tab 3 Name (default)** | Text | Label for tab 3. Default `Complete`. |
-| **Custom Status Option Name** | Text | Adds an extra option to the status dropdown. Leave blank to hide it. |
-| **Custom: Booking Status (GUID)** | Text | `bookingstatus` record GUID set on the booking when the custom option is chosen. |
-| **Custom: Work Order Sub-Status (GUID)** | Text | `msdyn_workordersubstatus` record GUID set on the work order when the custom option is chosen. |
+| **Extra Field 1 / 2 / 3 (column name)** | Text | Up to three extra columns to show on each card. See [Custom fields](#custom-fields). |
+| **Custom Fields Heading** | Text | Optional heading shown above the custom field values (one for all three); appears only when at least one value is present. |
+| **Priority Colours** | Text | Colour the card's top border and show a priority pill, by Work Order priority (`msdyn_priority`). Format: `High=#D13438;Medium=#F7A600;Low=#107C10`. Blank = off. |
+| **Header Badge Field** | Text | A Work Order / booking column shown as a badge in the card header (e.g. job type — domestic/commercial). Prefix `workorder.` for a WO field; lookups use `_logicalname_value`. Blank = off. |
 | **Maps Provider** | Choice | Which maps app the address opens: Google (default), Bing, or Apple. |
 
-### Tabs & views
+> **Custom "Start Job" status — configured on Field Service Settings, not the control.** The extra
+> status option's label and target IDs are read from the **Field Service Settings** record
+> (`msdyn_fieldservicesetting`) so the GUIDs travel with the environment (the same pattern the
+> `EnsureSingleRunningBooking` plugin uses for its paused sub-status). Add these columns to
+> `msdyn_fieldservicesetting`: **`prx3_custombookingstatus`** (lookup → `bookingstatus`, required to
+> enable the option), **`prx3_customworkordersubstatus`** (lookup → `msdyn_workordersubstatus`,
+> optional), and **`prx3_customstatuslabel`** (text; falls back to the booking-status name). When
+> `prx3_custombookingstatus` is empty, the custom option is hidden. *(Before 0.0.23 these were three
+> manifest properties on the control; they were removed in 0.0.23 in favour of Field Service Settings.)*
 
-The three tabs run three **system views** of Bookable Resource Bookings, matched **by name**.
-The names are hard-coded in [`BookingCardList/types.ts`](BookingCardList/BookingCardList/types.ts)
-as `TAB_VIEW_NAMES`:
+### Custom fields
 
-```
-My Bookings - Today
-My Bookings - Tomorrow
-My Bookings - Completed
-```
+`Extra Field 1..3` surface up to three extra columns on each card with no code change. Enter a
+column **logical name**; the field's **value** is shown (no caption), and the row is hidden when the
+property is blank or the value is empty.
 
-- Create those three system views (filtered however you like — e.g. current user's resource +
-  date, or completed in the last N days). The control reads each view's FetchXML and runs it,
-  so each tab reflects exactly that view's **filter and sort**.
-- Because the tabs run their own views, **the view the control is placed on does not drive the
-  card content** — bind it to anything.
-- To change which views are used, edit `TAB_VIEW_NAMES` and redeploy.
+- Default source is the **booking** (`bookableresourcebooking`).
+- Prefix with `workorder.` (or `wo.`) to read from the related **Work Order** — e.g.
+  `workorder.prx3_riskcategory`. `booking.` / `brb.` is also accepted explicitly.
+- Choices, dates, money and similar render via their **formatted value** automatically. For a
+  **lookup** column, enter its `_logicalname_value` form (e.g. `_prx3_site_value`).
+- Custom fields are fetched in an isolated, FormattedValue-aware query: a typo'd/invalid name
+  degrades gracefully (that row is skipped) instead of breaking the card.
+- Set **Custom Fields Heading** to show a single caption (styled like *Est. Travel* / *Products
+  Needed*) above the values. The whole block — heading included — only renders when at least one
+  custom value is present.
+
+### Tabs & how bookings are loaded
+
+**No system views are required.** The control loads its own data in code:
+
+1. It resolves the **signed-in user's Bookable Resource** (`bookableresource` where `userid` is the
+   current user).
+2. It runs one query for that resource's bookings from `COMPLETE_WINDOW_DAYS` before today up to the
+   end of tomorrow.
+3. [`bucketOf()`](BookingCardList/BookingCardList/types.ts) sorts each booking into a tab:
+   **Active** if it's Traveling/In Progress, then **Complete** if it's Completed/Cancelled,
+   otherwise **Today** or **Tomorrow** by start date.
+
+- The **Active** tab (first) holds the started job — a Traveling / In Progress booking, regardless of
+  its date. The control lands on this tab on open when a job is already started, otherwise on Today.
+- The **Complete** tab shows finished jobs from the last **`COMPLETE_WINDOW_DAYS`** days (default `7`,
+  by job start date), set in [`BookingCardList/types.ts`](BookingCardList/BookingCardList/types.ts).
+  Change it there and redeploy.
+- Because the control self-queries, **the view/subgrid it's placed on does not drive the card
+  content** — bind it to anything.
+- Requires `bookableresource` and `bookableresourcebooking` to be in the **mobile offline profile**
+  (booking already is; add the resource table if it isn't) so it works offline.
+- The tab **labels** are configurable via the Active / Tab 1 / Tab 2 / Tab 3 Name properties.
 
 ### Getting the GUIDs for the custom option
 
@@ -102,8 +156,9 @@ Work Order sub-statuses:
 3. **Tap the address** (the link with the 📍) to navigate in maps.
 4. **Update status** — pick Traveling / In Progress / Cancelled (or your custom option). The card
    refreshes to show the new status.
-5. While a job is **Traveling/In Progress**, other cards' status dropdowns are **locked** —
-   finish (or cancel) the active job first.
+5. While a job is **Traveling/In Progress**, other cards are **locked** — you can't open them or
+   change their status (even Tomorrow's) — finish (or cancel) the active job first. A **Completed**
+   job is read-only for status but can still be opened.
 
 ---
 
@@ -206,3 +261,5 @@ via `updateRecord` then re-query the affected booking.
 | Errors are invisible | The control logs `[BookingCardList] …` to the browser console (F12) and shows a red banner on the card area. |
 | Custom option doesn't write the WO status | Confirm the GUID is a `msdyn_workordersubstatus` record and the booking has a work order. If the write throws on the `msdyn_substatus` nav property, it may need PascalCase `msdyn_SubStatus`. |
 | Theme looks wrong | The control follows the app's modern theme; ensure the app uses the "new look". |
+
+

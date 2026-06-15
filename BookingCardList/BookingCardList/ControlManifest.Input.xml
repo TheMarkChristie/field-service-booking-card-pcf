@@ -1,43 +1,69 @@
-<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8"?>
 <manifest>
-  <control namespace="Proximo3.FieldService" constructor="BookingCardList" version="0.0.13" display-name-key="BookingCardList_Display" description-key="BookingCardList_Desc" control-type="virtual" >
-    <external-service-usage enabled="false">
-    </external-service-usage>
+  <control namespace="Proximo3.FieldService" constructor="BookingCardList" version="0.0.26"
+    display-name-key="BookingCardList_Display" description-key="BookingCardList_Desc"
+    control-type="virtual">
 
-    <!-- The dataset only drives WHICH bookings show (it honours the bound view's
-         filter / sort / paging / view selector). All card detail is pulled via WebAPI.
-         Bind this to a Bookable Resource Booking view (e.g. "My Bookings - Today"). -->
+    <external-service-usage enabled="false"></external-service-usage>
+
+    <!-- Bound dataset: Bookable Resource Bookings. The view chosen on the subgrid filters
+         which bookings appear (used directly in built-in mode; view-mode runs hard-coded
+         views by name instead). -->
     <data-set name="bookings" display-name-key="Bookings_Display" description-key="Bookings_Desc">
     </data-set>
 
-    <!-- The dropdown's target Booking Statuses (Traveling / In Progress / Cancelled)
-         are resolved at runtime by their Field Service Status value, so there is no
-         per-instance status configuration. -->
+    <!-- Tab labels. Tabs in order: Active (started jobs), then tab1/2/3. -->
+    <property name="activeTabName" display-name-key="ActiveTabName_Display" description-key="ActiveTabName_Desc"
+      of-type="SingleLine.Text" usage="input" required="false" default-value="Active" />
+    <property name="tab1Name" display-name-key="Tab1Name_Display" description-key="Tab1Name_Desc"
+      of-type="SingleLine.Text" usage="input" required="false" default-value="Today" />
+    <property name="tab2Name" display-name-key="Tab2Name_Display" description-key="Tab2Name_Desc"
+      of-type="SingleLine.Text" usage="input" required="false" default-value="Tomorrow" />
+    <property name="tab3Name" display-name-key="Tab3Name_Display" description-key="Tab3Name_Desc"
+      of-type="SingleLine.Text" usage="input" required="false" default-value="Complete" />
 
-    <!-- Tab names. These are fallbacks/defaults; the environment variables
-         prx3_BookingTab{1,2,3}Name and prx3_BookingTab{1,2,3}View (a view NAME) override them.
-         When no tab view is set, tabs use the built-in buckets: 1 = today, 2 = tomorrow,
-         3 = completed/cancelled. -->
-    <property name="tab1Name" display-name-key="Tab1Name_Display" description-key="Tab1Name_Desc" of-type="SingleLine.Text" usage="input" required="false" default-value="Today" />
-    <property name="tab2Name" display-name-key="Tab2Name_Display" description-key="Tab2Name_Desc" of-type="SingleLine.Text" usage="input" required="false" default-value="Tomorrow" />
-    <property name="tab3Name" display-name-key="Tab3Name_Display" description-key="Tab3Name_Desc" of-type="SingleLine.Text" usage="input" required="false" default-value="Complete" />
+    <!-- The optional custom status option (label + booking status + work order sub-status) is
+         configured on the Field Service Settings record (msdyn_fieldservicesetting):
+         prx3_customstatuslabel, prx3_custombookingstatus, prx3_customworkordersubstatus.
+         It lives there so the GUIDs travel with the environment. -->
 
-    <!-- Optional custom status action in the Update-status dropdown. If Name is set, the
-         option appears and, when chosen, sets the booking's Booking Status and/or the work
-         order's Sub-Status to the configured records (GUIDs). -->
-    <property name="customStatusName" display-name-key="CustomStatusName_Display" description-key="CustomStatusName_Desc" of-type="SingleLine.Text" usage="input" required="false" />
-    <property name="customBookingStatusId" display-name-key="CustomBookingStatusId_Display" description-key="CustomBookingStatusId_Desc" of-type="SingleLine.Text" usage="input" required="false" />
-    <property name="customWorkOrderSubStatusId" display-name-key="CustomWorkOrderSubStatusId_Display" description-key="CustomWorkOrderSubStatusId_Desc" of-type="SingleLine.Text" usage="input" required="false" />
+    <!-- Up to 3 extra columns to show on each card (value only, no caption). Enter a column
+         logical name; prefix with "workorder." for a Work Order field (default is the booking).
+         Blank = not shown. For a lookup column use its "_logicalname_value" form. -->
+    <property name="extraField1" display-name-key="ExtraField1_Display" description-key="ExtraField_Desc"
+      of-type="SingleLine.Text" usage="input" required="false" />
+    <property name="extraField2" display-name-key="ExtraField2_Display" description-key="ExtraField_Desc"
+      of-type="SingleLine.Text" usage="input" required="false" />
+    <property name="extraField3" display-name-key="ExtraField3_Display" description-key="ExtraField_Desc"
+      of-type="SingleLine.Text" usage="input" required="false" />
 
-    <!-- Optional UX config -->
-    <property name="mapsProvider" display-name-key="MapsProvider_Display" description-key="MapsProvider_Desc" of-type="Enum" usage="input" required="false" default-value="0">
+    <!-- Optional single heading shown above the custom field values (applies to all 3).
+         Only appears when at least one custom value is present. Blank = no heading. -->
+    <property name="extraFieldsTitle" display-name-key="ExtraFieldsTitle_Display" description-key="ExtraFieldsTitle_Desc"
+      of-type="SingleLine.Text" usage="input" required="false" />
+
+    <!-- Header badge: a column shown as a badge in the card header (e.g. Work Order job type,
+         domestic/commercial). Same prefix syntax as the custom fields: prefix workorder. for a
+         Work Order field, otherwise the booking. Lookups use "_logicalname_value". Blank = off. -->
+    <property name="headerField" display-name-key="HeaderField_Display" description-key="HeaderField_Desc"
+      of-type="SingleLine.Text" usage="input" required="false" />
+
+    <!-- Priority colours: colours the card's top border and shows a priority pill in the header,
+         based on the Work Order priority (msdyn_priority). Format: "Name=#hex" pairs separated by
+         ';' (e.g. High=#D13438;Medium=#F7A600;Low=#107C10). Blank = feature off. -->
+    <property name="priorityColours" display-name-key="PriorityColours_Display" description-key="PriorityColours_Desc"
+      of-type="SingleLine.Text" usage="input" required="false" />
+
+    <!-- Maps provider for the address deep-link -->
+    <property name="mapsProvider" display-name-key="MapsProvider_Display" description-key="MapsProvider_Desc"
+      of-type="Enum" usage="input" required="false" default-value="0">
       <value name="google" display-name-key="MapsProvider_Google">0</value>
       <value name="bing" display-name-key="MapsProvider_Bing">1</value>
       <value name="apple" display-name-key="MapsProvider_Apple">2</value>
     </property>
 
     <resources>
-      <code path="index.ts" order="1"/>
+      <code path="index.ts" order="1" />
       <resx path="strings/BookingCardList.1033.resx" version="1.0.0" />
       <platform-library name="React" version="16.14.0" />
       <platform-library name="Fluent" version="9.46.2" />

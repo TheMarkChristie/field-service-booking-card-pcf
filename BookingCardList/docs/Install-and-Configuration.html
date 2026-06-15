@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Booking Card List — Install &amp; Configuration</title>
+<style>
+/* ==========================================================================
+   Proximo 3 — Brand stylesheet
+   Drop this into any HTML page/artifact, then use the variables + classes.
+   Montserrat is loaded from Google Fonts (free); it is the official brand body
+   font and the working substitute for the Gotham HTF display font.
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
+
+/* Proprietary brand fonts (bundled in assets/fonts/). Relative paths assume the
+   fonts/ folder sits next to this stylesheet. For a single-file artifact that
+   can't reference external files, base64-embed the fonts instead (see html.md). */
+
+
+
+:root {
+  /* --- Core brand palette --- */
+  --p3-red:        #EE163B;   /* primary accent — headings, links, key actions */
+  --p3-pink-mid:   #F47389;   /* secondary */
+  --p3-pink-light: #F8A1B1;   /* tertiary / soft fills, highlights */
+  --p3-charcoal:   #2D2E35;   /* brand dark — dark sections, logo wordmark */
+  --p3-ink:        #3C3C3C;   /* primary body/heading text on light */
+  --p3-white:      #FFFFFF;
+
+  /* --- Neutral ramp (from brand guidelines) --- */
+  --p3-grey-900: #2E2E2E;
+  --p3-grey-700: #505050;
+  --p3-grey-500: #727272;
+  --p3-grey-300: #D2D2D2;
+  --p3-grey-200: #E6E6E6;
+  --p3-grey-100: #F1F3F2;   /* page background tint */
+
+  /* --- Semantic tokens --- */
+  --p3-bg:            var(--p3-white);
+  --p3-bg-subtle:     var(--p3-grey-100);
+  --p3-bg-inverse:    var(--p3-charcoal);
+  --p3-text:          var(--p3-ink);
+  --p3-text-muted:    var(--p3-grey-500);
+  --p3-text-inverse:  var(--p3-white);
+  --p3-accent:        var(--p3-red);
+  --p3-border:        var(--p3-grey-200);
+  --p3-link:          var(--p3-red);
+
+  /* --- Type ---
+     Gotham HTF = headings/display (official header font).
+     Montserrat = body (official text font).
+     Agency FB  = logo wordmark + large display accents (numerals, eyebrows). Use sparingly.
+     Each falls back gracefully if the bundled font isn't available. */
+  --p3-font-display: 'Gotham HTF', 'Montserrat', system-ui, sans-serif;
+  --p3-font-body:    'Montserrat', system-ui, sans-serif;
+  --p3-font-accent:  'Agency FB', 'Gotham HTF', 'Montserrat', system-ui, sans-serif;
+
+  /* --- Shape & elevation (brand button uses Y+15 / blur 30 drop shadow) --- */
+  --p3-radius:    8px;
+  --p3-radius-lg: 16px;
+  --p3-shadow-button: 0 15px 30px rgba(45, 46, 53, 0.20);
+  --p3-shadow-card:   0 8px 24px rgba(45, 46, 53, 0.10);
+}
+
+/* --- Base --- */
+body {
+  font-family: var(--p3-font-body);
+  color: var(--p3-text);
+  background: var(--p3-bg);
+  line-height: 1.6;
+  font-weight: 400;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--p3-font-display);
+  color: var(--p3-ink);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+h1 { font-size: 2.2rem; color: var(--p3-red); }   /* primary heading = brand red */
+h2 { font-size: 1.6rem; }
+h3 { font-size: 1.25rem; font-weight: 600; }
+
+a { color: var(--p3-link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* --- Buttons --- */
+.p3-btn {
+  font-family: var(--p3-font-display);
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 0.75em 1.6em;
+  border-radius: var(--p3-radius);
+  border: none;
+  cursor: pointer;
+  display: inline-block;
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+}
+.p3-btn--primary {
+  background: var(--p3-red);
+  color: var(--p3-white);
+  box-shadow: var(--p3-shadow-button);
+}
+.p3-btn--primary:hover { transform: translateY(-1px); background: #d11233; }
+.p3-btn--secondary {
+  background: transparent;
+  color: var(--p3-red);
+  border: 2px solid var(--p3-red);
+}
+.p3-btn--secondary:hover { background: var(--p3-red); color: var(--p3-white); }
+.p3-btn--dark {
+  background: var(--p3-charcoal);
+  color: var(--p3-white);
+  box-shadow: var(--p3-shadow-button);
+}
+
+/* --- Cards & sections --- */
+.p3-card {
+  background: var(--p3-white);
+  border: 1px solid var(--p3-border);
+  border-radius: var(--p3-radius-lg);
+  box-shadow: var(--p3-shadow-card);
+  padding: 1.75rem;
+}
+.p3-section-dark {
+  background: var(--p3-charcoal);
+  color: var(--p3-text-inverse);
+}
+.p3-section-dark h1,
+.p3-section-dark h2,
+.p3-section-dark h3 { color: var(--p3-white); }
+
+/* --- Accents --- */
+.p3-rule { height: 4px; width: 64px; background: var(--p3-red); border: 0; border-radius: 2px; }
+.p3-eyebrow {
+  font-family: var(--p3-font-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--p3-red);
+}
+.p3-stat { font-family: var(--p3-font-accent); font-weight: 700; color: var(--p3-red); line-height: 1; }
+::selection { background: var(--p3-pink-light); color: var(--p3-ink); }
+
+/* --- Image placeholder ---
+   Every Proximo 3 deliverable marks where images go with a labelled box plus a
+   description (which doubles as alt text for whoever inserts the real image). */
+.p3-img-placeholder {
+  border: 2px dashed var(--p3-grey-300);
+  border-radius: var(--p3-radius);
+  background: var(--p3-grey-100);
+  padding: 28px;
+  text-align: center;
+  color: var(--p3-grey-500);
+}
+.p3-img-placeholder .label {
+  font-family: var(--p3-font-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: var(--p3-red);
+  font-size: 0.8rem;
+}
+.p3-img-placeholder .desc { margin-top: 8px; font-size: 0.92rem; color: var(--p3-grey-700); }
+.p3-figcaption { font-size: 0.85rem; color: var(--p3-text-muted); margin-top: 8px; }
+
+</style>
+<style>
+  body{background:var(--p3-grey-100);margin:0;}
+  .doc{max-width:880px;margin:0 auto;background:var(--p3-white);box-shadow:var(--p3-shadow-card);}
+  .hero{background:var(--p3-charcoal);color:var(--p3-white);padding:38px 52px 30px;}
+  .hero .logo{height:32px;display:block;margin-bottom:22px;}
+  .hero .eyebrow{font-family:var(--p3-font-accent);text-transform:uppercase;letter-spacing:.14em;font-size:.82rem;font-weight:700;color:var(--p3-white);opacity:.72;}
+  .hero h1{color:var(--p3-white);font-size:2rem;margin:.25rem 0 0;}
+  .hero .meta{margin-top:8px;color:#c9cace;font-size:.9rem;font-family:var(--p3-font-accent);letter-spacing:.04em;text-transform:uppercase;}
+  .hero .p3-rule{margin-top:18px;}
+  .content{padding:30px 52px 8px;}
+  .lead{font-size:1.05rem;color:var(--p3-ink);}
+  nav.toc{border:1px solid var(--p3-border);border-radius:var(--p3-radius);padding:16px 20px;margin:22px 0;background:var(--p3-grey-100);}
+  nav.toc .eyebrow{display:block;margin-bottom:8px;}
+  nav.toc ol{margin:0;padding-left:20px;columns:2;column-gap:30px;}
+  nav.toc a{color:var(--p3-red);}
+  h2{font-size:1.5rem;margin:36px 0 4px;scroll-margin-top:14px;}
+  h2 .num{font-family:var(--p3-font-accent);color:var(--p3-red);margin-right:.5rem;}
+  h2 + .underrule{height:4px;width:56px;background:var(--p3-red);border-radius:2px;margin-bottom:12px;}
+  h3{margin:22px 0 4px;}
+  p,li{color:var(--p3-ink);}
+  code{font-family:ui-monospace,"Cascadia Code",Consolas,monospace;background:#f3eef0;color:#b00d2c;padding:1px 6px;border-radius:5px;font-size:.86em;}
+  pre{background:var(--p3-charcoal);color:#f1f1f1;border-radius:var(--p3-radius);padding:14px 16px;overflow-x:auto;font-family:ui-monospace,Consolas,monospace;font-size:.85rem;line-height:1.5;}
+  pre code{background:none;color:inherit;padding:0;}
+  table{width:100%;border-collapse:collapse;margin:14px 0;border:1px solid var(--p3-border);border-radius:var(--p3-radius);overflow:hidden;}
+  th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--p3-border);font-size:.93rem;vertical-align:top;}
+  thead th{background:var(--p3-red);color:var(--p3-white);font-family:var(--p3-font-display);font-weight:700;font-size:.82rem;text-transform:uppercase;letter-spacing:.04em;}
+  tbody tr:nth-child(even){background:#faf7f8;}
+  tbody tr:last-child td{border-bottom:none;}
+  td code{white-space:nowrap;}
+  .callout{border-radius:var(--p3-radius);padding:12px 16px;margin:14px 0;font-size:.93rem;border-left:4px solid;}
+  .callout.note{background:var(--p3-grey-100);border-color:var(--p3-charcoal);}
+  .callout.tip{background:#fdeef1;border-color:var(--p3-red);}
+  .callout.warn{background:#fdeef1;border-color:var(--p3-red);}
+  .callout .h{font-family:var(--p3-font-display);font-weight:700;color:var(--p3-ink);}
+  .p3-img-placeholder{margin:16px 0 6px;}
+  .figblock{margin:18px 0;}
+  ul.tight li{margin:3px 0;}
+  .kbd{font-family:ui-monospace,Consolas,monospace;background:#fff;border:1px solid #ccc;border-bottom-width:2px;border-radius:4px;padding:0 5px;font-size:.82em;}
+  footer.brandfoot{background:var(--p3-charcoal);color:#c9cace;padding:24px 52px;margin-top:34px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+  footer.brandfoot img{height:26px;}
+  footer.brandfoot .c{font-size:.85rem;}
+  footer.brandfoot a{color:#fff;}
+  @media print{
+    body{background:#fff;} .doc{box-shadow:none;max-width:none;}
+    .hero,footer.brandfoot{background:#2D2E35 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    thead th{background:#EE163B !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    nav.toc{display:none;}
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <header class="hero">
+    <img class="logo" src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllciAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB2aWV3Qm94PSIwIDAgNjkzLjE3NTYgMTQxLjA1NTciPgogIDxnIGlkPSJ0eXBlIj4KICAgIDxhIHhsaW5rOmhyZWY9Ijc2LjE5NTY4NjI3NDUwOTgiPgogICAgICA8cGF0aCBpZD0idHlwZV9fUGF0aEl0ZW1fIiBkYXRhLW5hbWU9InR5cGUgJmFtcDtsdDtQYXRoSXRlbSZhbXA7Z3Q7IiBkPSJNNTQ3LjE2MzYsMzcuNzUyOWMtMi41ODI2LC4wNC01LjE2NTIsLjA1LTcuNzQ3OS0uMDA1LS43NDQzLS4wMTUtMS4wODM5LC4yNTQ4LTEuNDAzNywuODg5Mi02LjM0NDMsMTIuNTgzNS0xMi43MDg0LDI1LjE1MTktMTkuMDcyNSwzNy43MjA0LTEuMjYzOCwyLjQ5MjctMi41Mzc3LDQuOTg1NC0zLjg4MTUsNy42MjMtMi4xOTc5LTQuMzM2LTQuMzIxLTguNTA3Mi02LjQyOTEtMTIuNjgzNC01LjUwOTktMTAuOS0xMS4wMTk5LTIxLjgwNS0xNi41MDQ4LTMyLjcxNS0uMzA0OC0uNjA0NS0uNjM5NS0uODQ0My0xLjMzMzgtLjgyOTMtMi42MjI2LC4wNDUtNS4yNDUyLC4wNC03Ljg2MjgsMC0uNzE0NC0uMDE1LS45MTkyLC4xNjQ5LS45MTkyLC44OTkyLC4wMiwxOS45MTY3LC4wMiwzOS44MzM1LDAsNTkuNzQ1MiwwLC43MzkzLC4yMDQ4LC45MTkxLC45MTkyLC45MDQyLDIuMjI3OS0uMDQ5OSw0LjQ2MDktLjA3OTksNi42ODg4LC4wMSwxLjA0OSwuMDQsMS4yNzM4LS4yNjk4LDEuMjY4OS0xLjI4MzgtLjAzNS0xNC4wMDcyLS4wMjUtMjguMDE0Mi0uMDItNDIuMDIxNCwwLS4zODk3LS4xMDQ5LS44MDkyLC4xNjQ5LTEuMjczOCwuMTQ5OCwuMjU5NywuMjU0OCwuNDE0NiwuMzM5NywuNTg0NCw3LjI5MzMsMTQuMzI2OSwxNC41OTY2LDI4LjY1MzcsMjEuODU5OSw0Mi45OTU1LC4zNzQ3LC43MzkzLC43NTkzLDEuMDc5LDEuNTgzNSwuOTc5MSwuNzk5NC0uMDk0OSwxLjU0ODcsLjE4OTksMi4wOTgxLS45MDQyLDcuMTMzNC0xNC4xNDcsMTQuMzQxOS0yOC4yNTksMjEuNTM1Mi00Mi4zNzExLC4yMDk4LS40MTQ3LC4zMjk3LS45MjkyLC44NjkyLTEuMjI4OXYxLjQwMzdjMCwxNC4wMDcxLC4wMDUsMjguMDE0My0uMDI1LDQyLjAyMTUsMCwuODc0MiwuMjA0OSwxLjExOSwxLjA4OSwxLjA5MzksMi4yNjc5LS4wNjk5LDQuNTQwOC0uMDU0OSw2LjgwODctLjAwNSwuNzM0MywuMDE1LC45MDQyLS4xOTk4LC45MDQyLS45MTQyLS4wMi0xOS45MTY3LS4wMi0zOS44Mjg1LC4wMDUtNTkuNzQ1MiwwLS43NTkzLS4yMzk4LS44OTkyLS45MzQyLS44ODkyWiIgc3R5bGU9ImZpbGw6ICNmZmY7Ii8+CiAgICA8L2E+CiAgICA8cGF0aCBpZD0idHlwZV9fQ29tcG91bmRQYXRoSXRlbV8iIGRhdGEtbmFtZT0idHlwZSAmYW1wO2x0O0NvbXBvdW5kUGF0aEl0ZW0mYW1wO2d0OyIgZD0iTTM1Ny40ODY2LDM3Ljc2NzloLTM0Ljk3MjljLTUuMDM1MywuMDA1LTguODkxOCwzLjg3NjUtOC44OTE4LDguOTI2OHY0My42NTQ5YzAsNS4wNjUzLDMuODQ2NSw4LjkzMTgsOC44ODE5LDguOTMxOCwxMS42NTkzLC4wMDQ5LDIzLjMxODYsLjAwNDksMzQuOTc3OSwwLDUuMDQ1NCwwLDguODkxOS0zLjg1NjUsOC44OTE5LTguOTIxOVY0Ni42OTk3YzAtNS4wNTUzLTMuODUxNC04LjkyNjgtOC44ODY4LTguOTMxOFptLTEuMDk0LDUyLjY1MTdjLTEwLjkxLS4wMy0yMS44MjUtLjAzNDktMzIuNzQsLjAwNS0uOTg0MSwuMDA1LTEuMjA4OS0uMjU0OC0xLjIwODktMS4yMTg4LC4wMzUtMTMuODEyMywuMDM1LTI3LjYxOTcsMC00MS40MjcsMC0uOTU5MSwuMjI5OC0xLjIzODksMS4yMTM5LTEuMjMzOCwxMC45MTQ5LC4wMzQ5LDIxLjgyOTksLjAzNDksMzIuNzQ0OSwwLC45NDkxLS4wMDUsMS4xNDksLjI4NDcsMS4xNDM5LDEuMTc4OC0uMDM1LDYuOTIzNy0uMDE5OSwxMy44NDczLS4wMTk5LDIwLjc3NiwwLDYuOTIzNi0uMDIwMSwxMy44NDczLC4wMjUsMjAuNzcwOSwuMDA1LC45MjQyLS4yMzk4LDEuMTUzOS0xLjE1OSwxLjE0OVoiIHN0eWxlPSJmaWxsOiAjZmZmOyIvPgogICAgPHBhdGggaWQ9InR5cGVfX0NvbXBvdW5kUGF0aEl0ZW1fLTIiIGRhdGEtbmFtZT0idHlwZSAmYW1wO2x0O0NvbXBvdW5kUGF0aEl0ZW0mYW1wO2d0OyIgZD0iTTYwOS4yODE1LDM3Ljc2NzloLTM1LjA5MjhjLTQuOTcwNSwuMDA1LTguODI2OSwzLjg2NjUtOC44MjY5LDguODQxOS0uMDA1LDcuMzE4My0uMDA1LDE0LjYzMTYtLjAwNSwyMS45NDk5LDAsNy4zMTMzLDAsMTQuNjMxNiwuMDA1LDIxLjk0NDksMCw0LjkwNTQsMy44NzE1LDguNzcxOSw4Ljc4Miw4Ljc3NjksMTEuNzM0MiwuMDA0OSwyMy40NzM0LC4wMDQ5LDM1LjIwNzcsMCw0Ljg0MDYtLjAwNSw4LjcwNy0zLjg3NjUsOC43MDctOC43MjIxLC4wMS0xNC42NzE0LC4wMDUtMjkuMzQzLDAtNDQuMDE0NSwwLTQuOTEwNS0zLjg2NjUtOC43NzItOC43NzctOC43NzdabS4wMDUsNTEuNTgyN2MuMDA1LC45MTQxLS4yNjQ3LDEuMDY5LTEuMTA5LDEuMDY5LTEwLjk1LS4wMy0yMS44OTk5LS4wMzQ5LTMyLjg0OTksLjAwNS0xLjAyOTEsLjAwNS0xLjE5ODktLjMyNDYtMS4xODg5LTEuMjU4OCwuMDM1LTYuOTIzNiwuMDItMTMuODQyMywuMDItMjAuNzY1OSwwLTYuODQzOCwuMDItMTMuNjg3Ni0uMDItMjAuNTMxMy0uMDEtLjk3NCwuMTU0OS0xLjMzMzcsMS4yNTM5LTEuMzI4NywxMC45MDk5LC4wNDQ5LDIxLjgxOTksLjAzOTksMzIuNzM0OSwuMDA1LC45MDQyLDAsMS4xNTksLjIxOTgsMS4xNTksMS4xNTM5LS4wMywxMy44ODIyLS4wMzUsMjcuNzY0NSwwLDQxLjY1MThaIiBzdHlsZT0iZmlsbDogI2ZmZjsiLz4KICAgIDxwYXRoIGlkPSJ0eXBlX19Db21wb3VuZFBhdGhJdGVtXy0zIiBkYXRhLW5hbWU9InR5cGUgJmFtcDtsdDtDb21wb3VuZFBhdGhJdGVtJmFtcDtndDsiIGQ9Ik0yODUuMTU1NSw3NC4zMzQ0YzUuOTc5NS0xLjIyODksOS4zNDE0LTQuOTU1NCwxMC4wODA3LTEwLjk0LC41NzQ0LTQuNjY1NywuNDU5Ni05LjM3MTQsLjA1OTktMTQuMDQ3Mi0uMjM0OC0yLjcxNzQtMS4xNjg5LTUuMjYwMi0zLjAzNzItNy4zNTgyLTIuNzUyNS0zLjA5MjEtNi40MDkxLTQuMTUxMi0xMC4zMzU1LTQuMTg2MS0xMS4zNzk2LS4wOTQ5LTIyLjc2NDItLjAzLTM0LjE0ODctLjA0NS0uNjg0NC0uMDA1LS45NDQxLC4xMTk4LS45NDQxLC44ODQyLC4wMjUsMTkuOTExNywuMDI1LDM5LjgyODUsLjAwNSw1OS43NDAyLS4wMDUsLjcyNDMsLjE4NDksLjkyOTEsLjkwOTIsLjkxOTEsMi4zMDc5LS4wNDUsNC42MjA3LS4wNjQ5LDYuOTIzNiwuMDA1LC44ODkyLC4wMjUsMS4wODktLjIyNDgsMS4wODQtMS4wOTM5LS4wMzUtNy40MzMyLDAtMTQuODY2NC0uMDQ1LTIyLjI5OTYtLjAwNS0xLjAwOTEsLjI5NDgtMS4yMDM5LDEuMjM4OS0xLjE5MzksNS41OTQ5LC4wNDUsMTEuMTg5NywuMDQ1LDE2Ljc4NDYsMCwuOTI5MS0uMDEsMS4zNTM4LC4yODQ4LDEuNzM4NCwxLjExOSwzLjQ0NjgsNy41MTgxLDYuOTQzNiwxNS4wMTEzLDEwLjQzNTQsMjIuNTA5NCwuMTc5OCwuMzg0NywuMTg5OCwuOTQ0MSwuODU5MiwuOTM5MSwzLjA3NzItLjAwOTksNi4xNTQ0LS4wMDQ5LDkuMzgxNC0uMDA0OS0zLjg3NjUtOC4zMjc0LTcuNjg3OS0xNi41MjQ5LTExLjU0OTQtMjQuODIyMywuMjU0OC0uMDU1LC40MDQ3LS4wOTQ5LC41NTk1LS4xMjQ5Wm0tNS43OTk3LTguNDM3M2MtNy40NjgyLC4wMTAxLTE0Ljk0MTQtLjAxLTIyLjQwOTUsLjAzLS45NDkxLC4wMDUtMS4yNDg4LS4xODk4LTEuMjM4OS0xLjE5MzksLjA1NS01LjY3NDgsLjA0NS0xMS4zNDQ2LC4wMDUtMTcuMDE0NC0uMDA1LS44OTkxLC4xOTQ4LTEuMTg4OSwxLjEzOS0xLjE3MzksNC4wNjYyLC4wNTQ5LDguMTM3NSwuMDI0OSwxMi4yMDM4LC4wMjQ5di4wOGMzLjk0NjQsMCw3LjkwMjctLjEwNDksMTEuODQ0MSwuMDI5OSwzLjg0NjUsLjEyOTksNS40NDUsMS42MDM2LDUuNzA0OCw1LjQwNSwuMjE0OCwzLjAzMjMsLjI4OTcsNi4wOTk1LS4wOTk5LDkuMTMxNy0uMzQ5NywyLjcyNzQtMS44MzgzLDQuMTU2Mi00LjU4MDcsNC41MDU5LS44NDkzLC4xMDk5LTEuNzEzNSwuMTc0OS0yLjU2NzcsLjE3NDlaIiBzdHlsZT0iZmlsbDogI2ZmZjsiLz4KICAgIDxwYXRoIGlkPSJ0eXBlX19Db21wb3VuZFBhdGhJdGVtXy00IiBkYXRhLW5hbWU9InR5cGUgJmFtcDtsdDtDb21wb3VuZFBhdGhJdGVtJmFtcDtndDsiIGQ9Ik0yMTkuOTM1MywzOC4zNjczYy0xLjUyMzYtLjM4NDctMy4wNjcyLS41OTk0LTQuNjM1OC0uNTk5NC0xMS4xMTQ4LDAtMjIuMjI0NiwuMDE1LTMzLjMzOTQtLjAyNS0xLjAxNDEtLjAwNS0xLjE4ODksLjI5NDgtMS4xODM5LDEuMjMzOCwuMDM1LDkuODYxLC4wMiwxOS43MjE5LC4wMiwyOS41ODI5LDAsOS44OTU5LC4wMDk5LDE5Ljc5NjktLjAyLDI5LjY5MjgsMCwuNzk5MiwuMTY0OSwxLjA3MzksMS4wMTQxLDEuMDU0LDIuMTg4LS4wNjQ5LDQuMzgwOS0uMDc0OSw2LjU2ODksMCwuOTk0MSwuMDM1LDEuMzEzOC0uMTc5OCwxLjMwMzgtMS4yNTM4LS4wNTk5LTYuODA4Ny0uMDEtMTMuNjE3NS0uMDU1LTIwLjQyMTItLjAwNS0uOTQ5MiwuMjc5Ny0xLjE0OSwxLjE3MzktMS4xNDM5LDYuODQ4NywuMDM5OSwxMy42OTc1LC4wMjUsMjAuNTQxMiwuMDIsMi4xMTMxLS4wMDUsNC4yMjExLC4wMDUsNi4zMjkyLS4yMDk4LDYuMTc0My0uNjI5NSwxMC4zNTU1LTQuMjYxMSwxMS4zMDk2LTEwLjM3MDUsLjg4NDItNS42NTk4LC43NTkzLTExLjQwOTUsLjEwOTktMTcuMDc0NC0uNjE5NS01LjQyLTMuNjY2Ni05LjExMTYtOS4xMzY2LTEwLjQ4NTRabS41NDQ1LDIzLjkyOGMtLjExNDksMy4zMTItMi4wMjMxLDUuMTMwMy01LjM4NTEsNS4yNzAxLTIuNDU3NywuMTA1LTQuOTI1NSwuMDU1LTcuMzg4MiwuMDYtNS42Mjk4LC4wMDUtMTEuMjY0Ny0uMDMtMTYuODk0NSwuMDI1LTEuMDA5MSwuMDA5OS0xLjIwODktLjI5OTctMS4xOTg5LTEuMjQ4OCwuMDM5OS02LjIxNDQsLjA0NS0xMi40MzM3LS4wMDUtMTguNjUyOS0uMDA1LTEuMDE0MSwuMzE5Ny0xLjIxMzgsMS4yNTg5LTEuMjAzOSw0LjAyNjMsLjA0OTksOC4wNTc2LC4wMjQ5LDEyLjA4MzksLjAyNDl2LjA4NDljNC4wNjYzLDAsOC4xMzI2LS4wNzk5LDEyLjE5MzgsLjAyNSwzLjMyMiwuMDg5OSw1LjE5MDMsMS44OTMzLDUuMzI1MSw1LjE4MDIsLjEzOTgsMy40NzY4LC4xMjk5LDYuOTYzNiwuMDEsMTAuNDM1NFoiIHN0eWxlPSJmaWxsOiAjZmZmOyIvPgogICAgPGEgeGxpbms6aHJlZj0iNzYuMTk1Njg2Mjc0NTA5OCI+CiAgICAgIDxwYXRoIGlkPSJ0eXBlX19QYXRoSXRlbV8tMiIgZGF0YS1uYW1lPSJ0eXBlICZhbXA7bHQ7UGF0aEl0ZW0mYW1wO2d0OyIgZD0iTTQxNy40NTkxLDY5LjIwOTFjLS41MjQ1LS43MjQzLS41MzQ1LTEuMTU4OS0uMDA1LTEuODkzMyw2Ljc1MzgtOS4zOTE0LDEzLjQ3MjYtMTguODA3NywyMC4xOTE1LTI4LjIyNDEsLjI3NDctLjM4OTYsLjY3OTMtLjcyOTMsLjc0NDMtMS4zMjM3LTMuMTU3MSwwLTYuMjQ0MywuMDM1LTkuMzMxNC0uMDItLjg3NDItLjAxNS0xLjM5ODcsLjI0NDctMS45MTMyLC45NjkxLTQuOTc1NCw3LjAxMzYtMTAuMDIwOCwxMy45NzczLTE0Ljk4NjIsMjEuMDAwNy0uNzA5NCwxLjAwNDEtLjk0OTEsLjc4NDMtMS41Mzg2LS4wNDk5LTQuNjI1OC02LjU0NC05LjM1NjQtMTMuMDEzLTEzLjkwMjItMTkuNjEyLTEuMTg4OS0xLjcyMzUtMi4zODc4LTIuNTI3Ny00LjUzMDgtMi4zMzgtMi41Mzc3LC4yMTk5LTUuMTEwNCwuMDUtNy44NDI4LC4wNSwuMzQ0NywuNDg5NSwuNTU5NSwuODA0MywuNzg0MywxLjExMzksNi43ODg3LDkuNTExMywxMy41NzI1LDE5LjAyMjYsMjAuMzkxMywyOC41MTM5LC40NjQ1LC42NDkzLC40OTk1LDEuMDU4OSwuMDE5OSwxLjcxMzQtMy4wNDIyLDQuMTY2Mi02LjAzOTQsOC4zNjczLTkuMDQ2NywxMi41NTg1LTQuMTcxMiw1LjgwOTctOC4zMzczLDExLjYxNDQtMTIuNjQzNCwxNy42MTM5LDMuMzQyLDAsNi40NjQxLS4wMyw5LjU4NjIsLjAxOTksLjgyOTIsLjAxNSwxLjMyMzgtLjIyNDgsMS44MDg0LS45MTQyLDUuMTI1My03LjI0MzMsMTAuMzAwNi0xNC40NDY4LDE1LjQyNTktMjEuNjkwMSwuNTk0NC0uODQ0MiwuODM0Mi0uODk0MSwxLjQ1ODYtLjAxNSw1LjIxNTIsNy4zMjM0LDEwLjQ4MDQsMTQuNjExNiwxNS43MTA2LDIxLjkyLC4zNTQ3LC40OTk2LC43MTQzLC43MTkzLDEuMzM4OCwuNjk0MywxLjQwODctLjA0OTksMi44MTc0LS4wMTQ5LDQuMjI2MS0uMDE0OWg1LjYyNDljLS4zNjQ3LS41MzQ1LS41ODk1LS44ODQyLS44MzQzLTEuMjI0LTYuOTAzNi05LjYyMTItMTMuNzk3My0xOS4yNDczLTIwLjczNTktMjguODQ4NVoiIHN0eWxlPSJmaWxsOiAjZmZmOyIvPgogICAgPC9hPgogICAgPGEgeGxpbms6aHJlZj0iNzYuMTk1Njg2Mjc0NTA5OCI+CiAgICAgIDxwYXRoIGlkPSJ0eXBlX19QYXRoSXRlbV8tMyIgZGF0YS1uYW1lPSJ0eXBlICZhbXA7bHQ7UGF0aEl0ZW0mYW1wO2d0OyIgZD0iTTQ2My41Mjc1LDM3Ljc0MjljLTIuMTA4LC4wOC00LjIyNjEsLjA5NDktNi4zMzQyLS4wMDUtMS4wNTktLjA0NS0xLjI1ODksLjI4NDgtMS4yNTg5LDEuMjg4OSwuMDM1LDE3LjYzODksLjAyNSwzNS4yNzc2LC4wMjUsNTIuOTE2NCwwLDIuMTUzLC4wMzUsNC4zMDYxLS4wMTUsNi40NTQxLS4wMTk5LC43MzkzLC4yMDQ4LC45MTkxLC45MTkyLC45MDQyLDIuMjI3OS0uMDQ5OSw0LjQ2MDktLjA3NDksNi42ODM5LC4wMSwxLjAwNCwuMDM1LDEuMjAzOS0uMjY5OCwxLjE5ODktMS4yMjM4LS4wMzUtOS44NjEtLjAyLTE5LjcxNjktLjAyLTI5LjU3MjlzLS4wMi0xOS43MTIsLjAyNS0yOS41Njc5YzAtLjk4OTEtLjI0OTgtMS4yMzg5LTEuMjIzOS0xLjIwMzlaIiBzdHlsZT0iZmlsbDogI2ZmZjsiLz4KICAgIDwvYT4KICAgIDxhIHhsaW5rOmhyZWY9IjYzLjUxNTY4NjI3NDUwOTgiPgogICAgICA8cGF0aCBpZD0idHlwZV9fUGF0aEl0ZW1fLTQiIGRhdGEtbmFtZT0idHlwZSAmYW1wO2x0O1BhdGhJdGVtJmFtcDtndDsiIGQ9Ik02ODMuODY1MywzNy42NTg4aC00NC4yMzE4Yy0yLjM4MDYsMC00LjMxMDMsMS45Mjk3LTQuMzEwMyw0LjMxMDNzMS45Mjk3LDQuMzEwMyw0LjMxMDMsNC4zMTAzaDM5LjkyMTV2MTcuODkyN2gtMzkuOTIxNWMtMi4zODA2LDAtNC4zMTAzLDEuOTI5Ny00LjMxMDMsNC4zMTAzczEuOTI5Nyw0LjMxMDMsNC4zMTAzLDQuMzEwM2gzOS45MjE1djE3Ljg5MjdoLTM5LjkyMTVjLTIuMzgwNiwwLTQuMzEwMywxLjkyOTctNC4zMTAzLDQuMzEwM3MxLjkyOTcsNC4zMTAzLDQuMzEwMyw0LjMxMDNoNDQuMjMxOGMyLjM4MDYsMCw0LjMxMDMtMS45Mjk3LDQuMzEwMy00LjMxMDNWNDEuOTY5MWMwLTIuMzgwNi0xLjkyOTctNC4zMTAzLTQuMzEwMy00LjMxMDNaIiBzdHlsZT0iZmlsbDogI2U1MWUzZDsiLz4KICAgIDwvYT4KICA8L2c+CiAgPHBhdGggaWQ9ImxvZ29NYXJrIiBkPSJNMTQwLjU1ODksMjguNzY5M2MuMDA0NS0uMTE1OCwuMDIwOC0uMjI5MywuMDE4MS0uMzQ2Mi0uMDUxMi0yLjMxMzMtMS40ODQ3LTQuMzctMy42MzgyLTUuMjE3NUw5MS42ODYzLDUuMzkzM2MtLjg3ODMtLjM0Ni0xLjgxNzItLjQzODMtMi43Mzg5LS4zMzUxLTEuMDYxOC0uMTUwNi0yLjE3NjctLjAxNDctMy4yMjE3LC40NzE4TDguMzIyLDQwLjQ4NzFjLTIuODc1NSwxLjMzNzUtNC4xMjI1LDQuNzUyNy0yLjc4NSw3LjYyODIsLjk3MywyLjA5MzIsMy4wNDU4LDMuMzIyNyw1LjIxMDUsMy4zMjI3LC44MTEsMCwxLjYzNDctLjE3MjQsMi40MTg0LS41MzdsMjkuNjkzMy0xMy40MTAxLDQ0LjAzNzMsMTYuODU0OGMuNjYxNywuMjUzOCwxLjM1NzEsLjM3OTksMi4wNTI1LC4zNzk5LC43OTcsMCwxLjU5MzQtLjE2NTQsMi4zMzY0LS40OTYzbDM2LjM3MjItMTYuMTk3djMwLjIyMzVsLTM0LjczNDIsMTQuNDcwOWMtMy41NjgxLDEuNjYzOC02LjQ2MDMsNS45MDQ4LTYuNDYwMyw5LjQ3MjlzMi44OTIzLDUuMTExNiw2LjQ2MDMsMy40NDc4bDM0LjczNDItMTQuNDcwOXYyNi44MTc5bC0zNC43MzQyLDE0LjQ3MDljLTMuNTY4MSwxLjY2MzgtNi40NjAzLDUuOTA0OC02LjQ2MDMsOS40NzI5czIuODkyMyw1LjExMTYsNi40NjAzLDMuNDQ3OGw0MS4xOTQ1LTE3LjQ4MzVjMy41NjgxLTEuNjYzOCw2LjQ2MDMtNS45MDQ4LDYuNDYwMy05LjQ3MjlWMjguOTUyN2MwLS4wNjU5LS4wMTc0LS4xMTg5LS4wMTk0LS4xODM0Wm0tNTEuNzc2MSwxNC4wMDE3bC0zMC42OTMtMTEuNzQ3MiwzMS42Mjg4LTE0LjA2MTksMzAuMjY4MiwxMS45MTQxLTMxLjIwNCwxMy44OTUxWiIgc3R5bGU9ImZpbGw6ICNlNTFlM2Q7Ii8+Cjwvc3ZnPg==" alt="Proximo 3" />
+    <span class="eyebrow">Field Service · PCF Control</span>
+    <h1>Booking Card List — Install &amp; Configuration</h1>
+    <div class="meta">Proximo 3 &nbsp;·&nbsp; Version 0.0.16 &nbsp;·&nbsp; June 2026</div>
+    <hr class="p3-rule" />
+  </header>
+
+  <div class="content">
+
+    <p class="lead">Booking Card List replaces a standard subgrid of Bookable Resource Bookings with a
+    touch-friendly card board for the Field Service mobile app. This guide covers prerequisites, adding the
+    control to a form, and every configuration property. For day-to-day use by engineers, see the
+    <b>Booking Card List — User Guide</b>.</p>
+
+    <nav class="toc">
+      <span class="eyebrow">Contents</span>
+      <ol>
+        <li><a href="#overview">Overview</a></li>
+        <li><a href="#prereq">Prerequisites</a></li>
+        <li><a href="#setup">Setup — add to a form</a></li>
+        <li><a href="#config">Configuration properties</a></li>
+        <li><a href="#views">Tabs &amp; views</a></li>
+        <li><a href="#custom">Custom fields</a></li>
+        <li><a href="#trouble">Troubleshooting</a></li>
+        <li><a href="#support">Support &amp; contact</a></li>
+        <li><a href="#version">Version</a></li>
+      </ol>
+    </nav>
+
+    <h2 id="overview"><span class="num">01</span>Overview</h2>
+    <div class="underrule"></div>
+    <p>The control shows each Bookable Resource Booking as a card — work order number, incident type, customer,
+    address (as a maps link), start time, estimated travel, products needed, and the booking status with an inline
+    <b>Update status</b> dropdown. Cards are grouped into three tabs (by default <b>Today / Tomorrow / Complete</b>)
+    and laid out responsively. All reads and writes use <code>context.webAPI</code>, so the control also works in the
+    Field Service mobile app while offline.</p>
+
+    <h2 id="prereq"><span class="num">02</span>Prerequisites</h2>
+    <div class="underrule"></div>
+    <ul class="tight">
+      <li>A Dynamics 365 <b>Field Service</b> environment with Bookable Resource Bookings and Work Orders.</li>
+      <li>The <b>Booking Card List</b> control imported into the environment (solution <i>Proximo3 Custom Controls</i>).</li>
+      <li>Three saved views of Bookable Resource Bookings (see <a href="#views">Tabs &amp; views</a>).</li>
+      <li>Maker access to the form or custom page used by the mobile app, and permission to publish.</li>
+      <li>For offline use: the relevant tables in the mobile <b>offline profile</b> (the default FS profile already includes them).</li>
+    </ul>
+
+    <h2 id="setup"><span class="num">03</span>Setup — add it to a form</h2>
+    <div class="underrule"></div>
+    <ol>
+      <li>Open the form or custom page used by the mobile app and add a <b>Bookable Resource Booking</b> subgrid
+          (or set the control as a view's grid control).</li>
+      <li>Select the subgrid → <b>Components</b> → <b>+ Add component</b> → <b>Booking Card List</b>.</li>
+      <li>Enable it for the <b>Phone</b> form factor (and Web / Tablet if wanted).</li>
+      <li>Set the properties in section 4.</li>
+      <li><b>Save</b>, then <b>Publish</b>.</li>
+    </ol>
+
+    <div class="figblock">
+      <div class="p3-img-placeholder">
+        <div class="label">[ Image Placeholder ]</div>
+        <div class="desc">Screenshot of the form designer Components panel with “Booking Card List” selected and
+        added to a Bookable Resource Booking subgrid, with the Phone form factor enabled.</div>
+      </div>
+      <div class="p3-figcaption">Figure 1: Adding the control to a subgrid.</div>
+    </div>
+
+    <div class="callout note"><span class="h">Note.</span> The three tabs run their own saved views, so the view
+    you place the control on does not drive the card content — you can bind it to anything.</div>
+
+    <h2 id="config"><span class="num">04</span>Configuration properties</h2>
+    <div class="underrule"></div>
+    <p>All properties are optional. Set them in the control's <b>Properties</b> pane in the form / app designer.</p>
+    <table>
+      <thead><tr><th>Property</th><th>Type</th><th>Default</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td>Bookings</td><td>Dataset</td><td>—</td><td>The bound Bookable Resource Booking dataset (used by the built-in fallback mode).</td></tr>
+        <tr><td>Tab 1 Name</td><td>Text</td><td><code>Today</code></td><td>Label for tab 1.</td></tr>
+        <tr><td>Tab 2 Name</td><td>Text</td><td><code>Tomorrow</code></td><td>Label for tab 2.</td></tr>
+        <tr><td>Tab 3 Name</td><td>Text</td><td><code>Complete</code></td><td>Label for tab 3.</td></tr>
+        <tr><td>Custom Status Option Name</td><td>Text</td><td>—</td><td>Adds an extra option to the status dropdown. Blank hides it.</td></tr>
+        <tr><td>Custom: Booking Status (GUID)</td><td>Text</td><td>—</td><td><code>bookingstatus</code> record GUID set on the booking when the custom option is chosen.</td></tr>
+        <tr><td>Custom: Work Order Sub-Status (GUID)</td><td>Text</td><td>—</td><td><code>msdyn_workordersubstatus</code> record GUID set on the work order when the custom option is chosen.</td></tr>
+        <tr><td>Extra Field 1 / 2 / 3</td><td>Text</td><td>—</td><td>A column to show on the card (value only). See <a href="#custom">Custom fields</a>.</td></tr>
+        <tr><td>Custom Fields Heading</td><td>Text</td><td>—</td><td>Optional single heading above the custom values; shows only when at least one value is present.</td></tr>
+        <tr><td>Maps Provider</td><td>Choice</td><td><code>Google</code></td><td>Which maps app the address opens: Google, Bing, or Apple.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="views"><span class="num">05</span>Tabs &amp; views</h2>
+    <div class="underrule"></div>
+    <p>The three tabs run three <b>system views</b> of Bookable Resource Bookings, matched <b>by name</b>. The names
+    are fixed in the control:</p>
+    <pre><code>My Bookings - Today
+My Bookings - Tomorrow
+My Bookings - Completed</code></pre>
+    <ul class="tight">
+      <li>Create those three views, filtered however you like (e.g. current user's resource and date range, or
+          completed in the last N days). The control reads each view's FetchXML and runs it, so each tab reflects
+          exactly that view's filter and sort.</li>
+      <li>The <b>Tab 1/2/3 Name</b> properties change only the labels, not which view runs.</li>
+    </ul>
+    <div class="callout tip"><span class="h">Tip.</span> If a tab is empty, the view name almost certainly does not
+    match exactly — check for a hyphen vs en-dash and stray spaces.</div>
+
+    <h2 id="custom"><span class="num">06</span>Custom fields</h2>
+    <div class="underrule"></div>
+    <p><b>Extra Field 1–3</b> show up to three extra columns on each card. Enter a column <b>logical name</b>; the
+    field's value is shown (no caption), and the row is hidden when the property is blank or the value is empty.</p>
+    <ul class="tight">
+      <li>Default source is the <b>booking</b> (<code>bookableresourcebooking</code>) — e.g. <code>prx3_priority</code>.</li>
+      <li>Prefix with <code>workorder.</code> (or <code>wo.</code>) to read from the related <b>Work Order</b>, e.g.
+          <code>workorder.msdyn_instructions</code>.</li>
+      <li>For a <b>lookup</b> column, enter its <code>_logicalname_value</code> form (e.g. <code>_prx3_site_value</code>).</li>
+      <li>Set <b>Custom Fields Heading</b> to show one caption (styled like <i>Est. Travel</i>) above the values.</li>
+    </ul>
+    <div class="callout warn"><span class="h">Important.</span> The prefix is a fixed keyword —
+    <code>workorder</code>/<code>wo</code> or <code>booking</code>/<code>brb</code> — not the table's logical name.
+    Use <code>workorder.msdyn_instructions</code>, not <code>msdyn_workorder.msdyn_instructions</code>.</div>
+    <table>
+      <thead><tr><th>You enter</th><th>Shows</th></tr></thead>
+      <tbody>
+        <tr><td><code>workorder.msdyn_instructions</code></td><td>The work order's Instructions text.</td></tr>
+        <tr><td><code>prx3_priority</code></td><td>The booking's Priority choice (formatted label).</td></tr>
+        <tr><td><code>_prx3_site_value</code></td><td>The booking's Site lookup (the related record's name).</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="trouble"><span class="num">07</span>Troubleshooting</h2>
+    <div class="underrule"></div>
+    <table>
+      <thead><tr><th>Issue</th><th>Resolution</th></tr></thead>
+      <tbody>
+        <tr><td>A tab is empty</td><td>The view name does not match the fixed names exactly (hyphen vs en-dash, spaces). Fix the view name.</td></tr>
+        <tr><td>A custom field does not show</td><td>Check the column logical name and prefix (<code>workorder.</code> for work order fields); confirm the record has a value. Lookups need the <code>_logicalname_value</code> form.</td></tr>
+        <tr><td>Changes do not appear after deploy</td><td>The mobile app caches control bundles — hard-refresh (<span class="kbd">Ctrl</span>+<span class="kbd">Shift</span>+<span class="kbd">R</span>) or reopen the app. The version is raised each release to clear the cache.</td></tr>
+        <tr><td>Errors are not visible</td><td>The control logs <code>[BookingCardList] …</code> to the browser console (F12) and shows a red banner on the card area.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="support"><span class="num">08</span>Support &amp; contact</h2>
+    <div class="underrule"></div>
+    <p>For help with this control, contact your Proximo 3 administrator or the Proximo 3 team at
+    <a href="https://proximo3.com">proximo3.com</a>.</p>
+    <div class="callout note"><span class="h">To confirm.</span> Add the specific support mailbox / channel your
+    organisation uses (this placeholder avoids stating a contact that may not exist).</div>
+
+    <h2 id="version"><span class="num">09</span>Version</h2>
+    <div class="underrule"></div>
+    <table>
+      <thead><tr><th>Version</th><th>Date</th><th>Summary</th></tr></thead>
+      <tbody>
+        <tr><td>0.0.16</td><td>June 2026</td><td>Status spinner; reason-specific lock labels (Complete / Other Open Job).</td></tr>
+        <tr><td>0.0.15</td><td>June 2026</td><td>Optional shared heading above custom fields.</td></tr>
+        <tr><td>0.0.14</td><td>June 2026</td><td>Three configurable custom fields.</td></tr>
+        <tr><td>0.0.13</td><td>—</td><td>Base control: tabbed booking cards, inline status, maps links.</td></tr>
+      </tbody>
+    </table>
+
+  </div>
+
+  <footer class="brandfoot">
+    <img src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllciAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB2aWV3Qm94PSIwIDAgNjkzLjE3NTYgMTQxLjA1NTciPgogIDxnIGlkPSJ0eXBlIj4KICAgIDxhIHhsaW5rOmhyZWY9Ijc2LjE5NTY4NjI3NDUwOTgiPgogICAgICA8cGF0aCBpZD0idHlwZV9fUGF0aEl0ZW1fIiBkYXRhLW5hbWU9InR5cGUgJmFtcDtsdDtQYXRoSXRlbSZhbXA7Z3Q7IiBkPSJNNTQ3LjE2MzYsMzcuNzUyOWMtMi41ODI2LC4wNC01LjE2NTIsLjA1LTcuNzQ3OS0uMDA1LS43NDQzLS4wMTUtMS4wODM5LC4yNTQ4LTEuNDAzNywuODg5Mi02LjM0NDMsMTIuNTgzNS0xMi43MDg0LDI1LjE1MTktMTkuMDcyNSwzNy43MjA0LTEuMjYzOCwyLjQ5MjctMi41Mzc3LDQuOTg1NC0zLjg4MTUsNy42MjMtMi4xOTc5LTQuMzM2LTQuMzIxLTguNTA3Mi02LjQyOTEtMTIuNjgzNC01LjUwOTktMTAuOS0xMS4wMTk5LTIxLjgwNS0xNi41MDQ4LTMyLjcxNS0uMzA0OC0uNjA0NS0uNjM5NS0uODQ0My0xLjMzMzgtLjgyOTMtMi42MjI2LC4wNDUtNS4yNDUyLC4wNC03Ljg2MjgsMC0uNzE0NC0uMDE1LS45MTkyLC4xNjQ5LS45MTkyLC44OTkyLC4wMiwxOS45MTY3LC4wMiwzOS44MzM1LDAsNTkuNzQ1MiwwLC43MzkzLC4yMDQ4LC45MTkxLC45MTkyLC45MDQyLDIuMjI3OS0uMDQ5OSw0LjQ2MDktLjA3OTksNi42ODg4LC4wMSwxLjA0OSwuMDQsMS4yNzM4LS4yNjk4LDEuMjY4OS0xLjI4MzgtLjAzNS0xNC4wMDcyLS4wMjUtMjguMDE0Mi0uMDItNDIuMDIxNCwwLS4zODk3LS4xMDQ5LS44MDkyLC4xNjQ5LTEuMjczOCwuMTQ5OCwuMjU5NywuMjU0OCwuNDE0NiwuMzM5NywuNTg0NCw3LjI5MzMsMTQuMzI2OSwxNC41OTY2LDI4LjY1MzcsMjEuODU5OSw0Mi45OTU1LC4zNzQ3LC43MzkzLC43NTkzLDEuMDc5LDEuNTgzNSwuOTc5MSwuNzk5NC0uMDk0OSwxLjU0ODcsLjE4OTksMi4wOTgxLS45MDQyLDcuMTMzNC0xNC4xNDcsMTQuMzQxOS0yOC4yNTksMjEuNTM1Mi00Mi4zNzExLC4yMDk4LS40MTQ3LC4zMjk3LS45MjkyLC44NjkyLTEuMjI4OXYxLjQwMzdjMCwxNC4wMDcxLC4wMDUsMjguMDE0My0uMDI1LDQyLjAyMTUsMCwuODc0MiwuMjA0OSwxLjExOSwxLjA4OSwxLjA5MzksMi4yNjc5LS4wNjk5LDQuNTQwOC0uMDU0OSw2LjgwODctLjAwNSwuNzM0MywuMDE1LC45MDQyLS4xOTk4LC45MDQyLS45MTQyLS4wMi0xOS45MTY3LS4wMi0zOS44Mjg1LC4wMDUtNTkuNzQ1MiwwLS43NTkzLS4yMzk4LS44OTkyLS45MzQyLS44ODkyWiIgc3R5bGU9ImZpbGw6ICNmZmY7Ii8+CiAgICA8L2E+CiAgICA8cGF0aCBpZD0idHlwZV9fQ29tcG91bmRQYXRoSXRlbV8iIGRhdGEtbmFtZT0idHlwZSAmYW1wO2x0O0NvbXBvdW5kUGF0aEl0ZW0mYW1wO2d0OyIgZD0iTTM1Ny40ODY2LDM3Ljc2NzloLTM0Ljk3MjljLTUuMDM1MywuMDA1LTguODkxOCwzLjg3NjUtOC44OTE4LDguOTI2OHY0My42NTQ5YzAsNS4wNjUzLDMuODQ2NSw4LjkzMTgsOC44ODE5LDguOTMxOCwxMS42NTkzLC4wMDQ5LDIzLjMxODYsLjAwNDksMzQuOTc3OSwwLDUuMDQ1NCwwLDguODkxOS0zLjg1NjUsOC44OTE5LTguOTIxOVY0Ni42OTk3YzAtNS4wNTUzLTMuODUxNC04LjkyNjgtOC44ODY4LTguOTMxOFptLTEuMDk0LDUyLjY1MTdjLTEwLjkxLS4wMy0yMS44MjUtLjAzNDktMzIuNzQsLjAwNS0uOTg0MSwuMDA1LTEuMjA4OS0uMjU0OC0xLjIwODktMS4yMTg4LC4wMzUtMTMuODEyMywuMDM1LTI3LjYxOTcsMC00MS40MjcsMC0uOTU5MSwuMjI5OC0xLjIzODksMS4yMTM5LTEuMjMzOCwxMC45MTQ5LC4wMzQ5LDIxLjgyOTksLjAzNDksMzIuNzQ0OSwwLC45NDkxLS4wMDUsMS4xNDksLjI4NDcsMS4xNDM5LDEuMTc4OC0uMDM1LDYuOTIzNy0uMDE5OSwxMy44NDczLS4wMTk5LDIwLjc3NiwwLDYuOTIzNi0uMDIwMSwxMy44NDczLC4wMjUsMjAuNzcwOSwuMDA1LC45MjQyLS4yMzk4LDEuMTUzOS0xLjE1OSwxLjE0OVoiIHN0eWxlPSJmaWxsOiAjZmZmOyIvPgogICAgPHBhdGggaWQ9InR5cGVfX0NvbXBvdW5kUGF0aEl0ZW1fLTIiIGRhdGEtbmFtZT0idHlwZSAmYW1wO2x0O0NvbXBvdW5kUGF0aEl0ZW0mYW1wO2d0OyIgZD0iTTYwOS4yODE1LDM3Ljc2NzloLTM1LjA5MjhjLTQuOTcwNSwuMDA1LTguODI2OSwzLjg2NjUtOC44MjY5LDguODQxOS0uMDA1LDcuMzE4My0uMDA1LDE0LjYzMTYtLjAwNSwyMS45NDk5LDAsNy4zMTMzLDAsMTQuNjMxNiwuMDA1LDIxLjk0NDksMCw0LjkwNTQsMy44NzE1LDguNzcxOSw4Ljc4Miw4Ljc3NjksMTEuNzM0MiwuMDA0OSwyMy40NzM0LC4wMDQ5LDM1LjIwNzcsMCw0Ljg0MDYtLjAwNSw4LjcwNy0zLjg3NjUsOC43MDctOC43MjIxLC4wMS0xNC42NzE0LC4wMDUtMjkuMzQzLDAtNDQuMDE0NSwwLTQuOTEwNS0zLjg2NjUtOC43NzItOC43NzctOC43NzdabS4wMDUsNTEuNTgyN2MuMDA1LC45MTQxLS4yNjQ3LDEuMDY5LTEuMTA5LDEuMDY5LTEwLjk1LS4wMy0yMS44OTk5LS4wMzQ5LTMyLjg0OTksLjAwNS0xLjAyOTEsLjAwNS0xLjE5ODktLjMyNDYtMS4xODg5LTEuMjU4OCwuMDM1LTYuOTIzNiwuMDItMTMuODQyMywuMDItMjAuNzY1OSwwLTYuODQzOCwuMDItMTMuNjg3Ni0uMDItMjAuNTMxMy0uMDEtLjk3NCwuMTU0OS0xLjMzMzcsMS4yNTM5LTEuMzI4NywxMC45MDk5LC4wNDQ5LDIxLjgxOTksLjAzOTksMzIuNzM0OSwuMDA1LC45MDQyLDAsMS4xNTksLjIxOTgsMS4xNTksMS4xNTM5LS4wMywxMy44ODIyLS4wMzUsMjcuNzY0NSwwLDQxLjY1MThaIiBzdHlsZT0iZmlsbDogI2ZmZjsiLz4KICAgIDxwYXRoIGlkPSJ0eXBlX19Db21wb3VuZFBhdGhJdGVtXy0zIiBkYXRhLW5hbWU9InR5cGUgJmFtcDtsdDtDb21wb3VuZFBhdGhJdGVtJmFtcDtndDsiIGQ9Ik0yODUuMTU1NSw3NC4zMzQ0YzUuOTc5NS0xLjIyODksOS4zNDE0LTQuOTU1NCwxMC4wODA3LTEwLjk0LC41NzQ0LTQuNjY1NywuNDU5Ni05LjM3MTQsLjA1OTktMTQuMDQ3Mi0uMjM0OC0yLjcxNzQtMS4xNjg5LTUuMjYwMi0zLjAzNzItNy4zNTgyLTIuNzUyNS0zLjA5MjEtNi40MDkxLTQuMTUxMi0xMC4zMzU1LTQuMTg2MS0xMS4zNzk2LS4wOTQ5LTIyLjc2NDItLjAzLTM0LjE0ODctLjA0NS0uNjg0NC0uMDA1LS45NDQxLC4xMTk4LS45NDQxLC44ODQyLC4wMjUsMTkuOTExNywuMDI1LDM5LjgyODUsLjAwNSw1OS43NDAyLS4wMDUsLjcyNDMsLjE4NDksLjkyOTEsLjkwOTIsLjkxOTEsMi4zMDc5LS4wNDUsNC42MjA3LS4wNjQ5LDYuOTIzNiwuMDA1LC44ODkyLC4wMjUsMS4wODktLjIyNDgsMS4wODQtMS4wOTM5LS4wMzUtNy40MzMyLDAtMTQuODY2NC0uMDQ1LTIyLjI5OTYtLjAwNS0xLjAwOTEsLjI5NDgtMS4yMDM5LDEuMjM4OS0xLjE5MzksNS41OTQ5LC4wNDUsMTEuMTg5NywuMDQ1LDE2Ljc4NDYsMCwuOTI5MS0uMDEsMS4zNTM4LC4yODQ4LDEuNzM4NCwxLjExOSwzLjQ0NjgsNy41MTgxLDYuOTQzNiwxNS4wMTEzLDEwLjQzNTQsMjIuNTA5NCwuMTc5OCwuMzg0NywuMTg5OCwuOTQ0MSwuODU5MiwuOTM5MSwzLjA3NzItLjAwOTksNi4xNTQ0LS4wMDQ5LDkuMzgxNC0uMDA0OS0zLjg3NjUtOC4zMjc0LTcuNjg3OS0xNi41MjQ5LTExLjU0OTQtMjQuODIyMywuMjU0OC0uMDU1LC40MDQ3LS4wOTQ5LC41NTk1LS4xMjQ5Wm0tNS43OTk3LTguNDM3M2MtNy40NjgyLC4wMTAxLTE0Ljk0MTQtLjAxLTIyLjQwOTUsLjAzLS45NDkxLC4wMDUtMS4yNDg4LS4xODk4LTEuMjM4OS0xLjE5MzksLjA1NS01LjY3NDgsLjA0NS0xMS4zNDQ2LC4wMDUtMTcuMDE0NC0uMDA1LS44OTkxLC4xOTQ4LTEuMTg4OSwxLjEzOS0xLjE3MzksNC4wNjYyLC4wNTQ5LDguMTM3NSwuMDI0OSwxMi4yMDM4LC4wMjQ5di4wOGMzLjk0NjQsMCw3LjkwMjctLjEwNDksMTEuODQ0MSwuMDI5OSwzLjg0NjUsLjEyOTksNS40NDUsMS42MDM2LDUuNzA0OCw1LjQwNSwuMjE0OCwzLjAzMjMsLjI4OTcsNi4wOTk1LS4wOTk5LDkuMTMxNy0uMzQ5NywyLjcyNzQtMS44MzgzLDQuMTU2Mi00LjU4MDcsNC41MDU5LS44NDkzLC4xMDk5LTEuNzEzNSwuMTc0OS0yLjU2NzcsLjE3NDlaIiBzdHlsZT0iZmlsbDogI2ZmZjsiLz4KICAgIDxwYXRoIGlkPSJ0eXBlX19Db21wb3VuZFBhdGhJdGVtXy00IiBkYXRhLW5hbWU9InR5cGUgJmFtcDtsdDtDb21wb3VuZFBhdGhJdGVtJmFtcDtndDsiIGQ9Ik0yMTkuOTM1MywzOC4zNjczYy0xLjUyMzYtLjM4NDctMy4wNjcyLS41OTk0LTQuNjM1OC0uNTk5NC0xMS4xMTQ4LDAtMjIuMjI0NiwuMDE1LTMzLjMzOTQtLjAyNS0xLjAxNDEtLjAwNS0xLjE4ODksLjI5NDgtMS4xODM5LDEuMjMzOCwuMDM1LDkuODYxLC4wMiwxOS43MjE5LC4wMiwyOS41ODI5LDAsOS44OTU5LC4wMDk5LDE5Ljc5NjktLjAyLDI5LjY5MjgsMCwuNzk5MiwuMTY0OSwxLjA3MzksMS4wMTQxLDEuMDU0LDIuMTg4LS4wNjQ5LDQuMzgwOS0uMDc0OSw2LjU2ODksMCwuOTk0MSwuMDM1LDEuMzEzOC0uMTc5OCwxLjMwMzgtMS4yNTM4LS4wNTk5LTYuODA4Ny0uMDEtMTMuNjE3NS0uMDU1LTIwLjQyMTItLjAwNS0uOTQ5MiwuMjc5Ny0xLjE0OSwxLjE3MzktMS4xNDM5LDYuODQ4NywuMDM5OSwxMy42OTc1LC4wMjUsMjAuNTQxMiwuMDIsMi4xMTMxLS4wMDUsNC4yMjExLC4wMDUsNi4zMjkyLS4yMDk4LDYuMTc0My0uNjI5NSwxMC4zNTU1LTQuMjYxMSwxMS4zMDk2LTEwLjM3MDUsLjg4NDItNS42NTk4LC43NTkzLTExLjQwOTUsLjEwOTktMTcuMDc0NC0uNjE5NS01LjQyLTMuNjY2Ni05LjExMTYtOS4xMzY2LTEwLjQ4NTRabS41NDQ1LDIzLjkyOGMtLjExNDksMy4zMTItMi4wMjMxLDUuMTMwMy01LjM4NTEsNS4yNzAxLTIuNDU3NywuMTA1LTQuOTI1NSwuMDU1LTcuMzg4MiwuMDYtNS42Mjk4LC4wMDUtMTEuMjY0Ny0uMDMtMTYuODk0NSwuMDI1LTEuMDA5MSwuMDA5OS0xLjIwODktLjI5OTctMS4xOTg5LTEuMjQ4OCwuMDM5OS02LjIxNDQsLjA0NS0xMi40MzM3LS4wMDUtMTguNjUyOS0uMDA1LTEuMDE0MSwuMzE5Ny0xLjIxMzgsMS4yNTg5LTEuMjAzOSw0LjAyNjMsLjA0OTksOC4wNTc2LC4wMjQ5LDEyLjA4MzksLjAyNDl2LjA4NDljNC4wNjYzLDAsOC4xMzI2LS4wNzk5LDEyLjE5MzgsLjAyNSwzLjMyMiwuMDg5OSw1LjE5MDMsMS44OTMzLDUuMzI1MSw1LjE4MDIsLjEzOTgsMy40NzY4LC4xMjk5LDYuOTYzNiwuMDEsMTAuNDM1NFoiIHN0eWxlPSJmaWxsOiAjZmZmOyIvPgogICAgPGEgeGxpbms6aHJlZj0iNzYuMTk1Njg2Mjc0NTA5OCI+CiAgICAgIDxwYXRoIGlkPSJ0eXBlX19QYXRoSXRlbV8tMiIgZGF0YS1uYW1lPSJ0eXBlICZhbXA7bHQ7UGF0aEl0ZW0mYW1wO2d0OyIgZD0iTTQxNy40NTkxLDY5LjIwOTFjLS41MjQ1LS43MjQzLS41MzQ1LTEuMTU4OS0uMDA1LTEuODkzMyw2Ljc1MzgtOS4zOTE0LDEzLjQ3MjYtMTguODA3NywyMC4xOTE1LTI4LjIyNDEsLjI3NDctLjM4OTYsLjY3OTMtLjcyOTMsLjc0NDMtMS4zMjM3LTMuMTU3MSwwLTYuMjQ0MywuMDM1LTkuMzMxNC0uMDItLjg3NDItLjAxNS0xLjM5ODcsLjI0NDctMS45MTMyLC45NjkxLTQuOTc1NCw3LjAxMzYtMTAuMDIwOCwxMy45NzczLTE0Ljk4NjIsMjEuMDAwNy0uNzA5NCwxLjAwNDEtLjk0OTEsLjc4NDMtMS41Mzg2LS4wNDk5LTQuNjI1OC02LjU0NC05LjM1NjQtMTMuMDEzLTEzLjkwMjItMTkuNjEyLTEuMTg4OS0xLjcyMzUtMi4zODc4LTIuNTI3Ny00LjUzMDgtMi4zMzgtMi41Mzc3LC4yMTk5LTUuMTEwNCwuMDUtNy44NDI4LC4wNSwuMzQ0NywuNDg5NSwuNTU5NSwuODA0MywuNzg0MywxLjExMzksNi43ODg3LDkuNTExMywxMy41NzI1LDE5LjAyMjYsMjAuMzkxMywyOC41MTM5LC40NjQ1LC42NDkzLC40OTk1LDEuMDU4OSwuMDE5OSwxLjcxMzQtMy4wNDIyLDQuMTY2Mi02LjAzOTQsOC4zNjczLTkuMDQ2NywxMi41NTg1LTQuMTcxMiw1LjgwOTctOC4zMzczLDExLjYxNDQtMTIuNjQzNCwxNy42MTM5LDMuMzQyLDAsNi40NjQxLS4wMyw5LjU4NjIsLjAxOTksLjgyOTIsLjAxNSwxLjMyMzgtLjIyNDgsMS44MDg0LS45MTQyLDUuMTI1My03LjI0MzMsMTAuMzAwNi0xNC40NDY4LDE1LjQyNTktMjEuNjkwMSwuNTk0NC0uODQ0MiwuODM0Mi0uODk0MSwxLjQ1ODYtLjAxNSw1LjIxNTIsNy4zMjM0LDEwLjQ4MDQsMTQuNjExNiwxNS43MTA2LDIxLjkyLC4zNTQ3LC40OTk2LC43MTQzLC43MTkzLDEuMzM4OCwuNjk0MywxLjQwODctLjA0OTksMi44MTc0LS4wMTQ5LDQuMjI2MS0uMDE0OWg1LjYyNDljLS4zNjQ3LS41MzQ1LS41ODk1LS44ODQyLS44MzQzLTEuMjI0LTYuOTAzNi05LjYyMTItMTMuNzk3My0xOS4yNDczLTIwLjczNTktMjguODQ4NVoiIHN0eWxlPSJmaWxsOiAjZmZmOyIvPgogICAgPC9hPgogICAgPGEgeGxpbms6aHJlZj0iNzYuMTk1Njg2Mjc0NTA5OCI+CiAgICAgIDxwYXRoIGlkPSJ0eXBlX19QYXRoSXRlbV8tMyIgZGF0YS1uYW1lPSJ0eXBlICZhbXA7bHQ7UGF0aEl0ZW0mYW1wO2d0OyIgZD0iTTQ2My41Mjc1LDM3Ljc0MjljLTIuMTA4LC4wOC00LjIyNjEsLjA5NDktNi4zMzQyLS4wMDUtMS4wNTktLjA0NS0xLjI1ODksLjI4NDgtMS4yNTg5LDEuMjg4OSwuMDM1LDE3LjYzODksLjAyNSwzNS4yNzc2LC4wMjUsNTIuOTE2NCwwLDIuMTUzLC4wMzUsNC4zMDYxLS4wMTUsNi40NTQxLS4wMTk5LC43MzkzLC4yMDQ4LC45MTkxLC45MTkyLC45MDQyLDIuMjI3OS0uMDQ5OSw0LjQ2MDktLjA3NDksNi42ODM5LC4wMSwxLjAwNCwuMDM1LDEuMjAzOS0uMjY5OCwxLjE5ODktMS4yMjM4LS4wMzUtOS44NjEtLjAyLTE5LjcxNjktLjAyLTI5LjU3MjlzLS4wMi0xOS43MTIsLjAyNS0yOS41Njc5YzAtLjk4OTEtLjI0OTgtMS4yMzg5LTEuMjIzOS0xLjIwMzlaIiBzdHlsZT0iZmlsbDogI2ZmZjsiLz4KICAgIDwvYT4KICAgIDxhIHhsaW5rOmhyZWY9IjYzLjUxNTY4NjI3NDUwOTgiPgogICAgICA8cGF0aCBpZD0idHlwZV9fUGF0aEl0ZW1fLTQiIGRhdGEtbmFtZT0idHlwZSAmYW1wO2x0O1BhdGhJdGVtJmFtcDtndDsiIGQ9Ik02ODMuODY1MywzNy42NTg4aC00NC4yMzE4Yy0yLjM4MDYsMC00LjMxMDMsMS45Mjk3LTQuMzEwMyw0LjMxMDNzMS45Mjk3LDQuMzEwMyw0LjMxMDMsNC4zMTAzaDM5LjkyMTV2MTcuODkyN2gtMzkuOTIxNWMtMi4zODA2LDAtNC4zMTAzLDEuOTI5Ny00LjMxMDMsNC4zMTAzczEuOTI5Nyw0LjMxMDMsNC4zMTAzLDQuMzEwM2gzOS45MjE1djE3Ljg5MjdoLTM5LjkyMTVjLTIuMzgwNiwwLTQuMzEwMywxLjkyOTctNC4zMTAzLDQuMzEwM3MxLjkyOTcsNC4zMTAzLDQuMzEwMyw0LjMxMDNoNDQuMjMxOGMyLjM4MDYsMCw0LjMxMDMtMS45Mjk3LDQuMzEwMy00LjMxMDNWNDEuOTY5MWMwLTIuMzgwNi0xLjkyOTctNC4zMTAzLTQuMzEwMy00LjMxMDNaIiBzdHlsZT0iZmlsbDogI2U1MWUzZDsiLz4KICAgIDwvYT4KICA8L2c+CiAgPHBhdGggaWQ9ImxvZ29NYXJrIiBkPSJNMTQwLjU1ODksMjguNzY5M2MuMDA0NS0uMTE1OCwuMDIwOC0uMjI5MywuMDE4MS0uMzQ2Mi0uMDUxMi0yLjMxMzMtMS40ODQ3LTQuMzctMy42MzgyLTUuMjE3NUw5MS42ODYzLDUuMzkzM2MtLjg3ODMtLjM0Ni0xLjgxNzItLjQzODMtMi43Mzg5LS4zMzUxLTEuMDYxOC0uMTUwNi0yLjE3NjctLjAxNDctMy4yMjE3LC40NzE4TDguMzIyLDQwLjQ4NzFjLTIuODc1NSwxLjMzNzUtNC4xMjI1LDQuNzUyNy0yLjc4NSw3LjYyODIsLjk3MywyLjA5MzIsMy4wNDU4LDMuMzIyNyw1LjIxMDUsMy4zMjI3LC44MTEsMCwxLjYzNDctLjE3MjQsMi40MTg0LS41MzdsMjkuNjkzMy0xMy40MTAxLDQ0LjAzNzMsMTYuODU0OGMuNjYxNywuMjUzOCwxLjM1NzEsLjM3OTksMi4wNTI1LC4zNzk5LC43OTcsMCwxLjU5MzQtLjE2NTQsMi4zMzY0LS40OTYzbDM2LjM3MjItMTYuMTk3djMwLjIyMzVsLTM0LjczNDIsMTQuNDcwOWMtMy41NjgxLDEuNjYzOC02LjQ2MDMsNS45MDQ4LTYuNDYwMyw5LjQ3MjlzMi44OTIzLDUuMTExNiw2LjQ2MDMsMy40NDc4bDM0LjczNDItMTQuNDcwOXYyNi44MTc5bC0zNC43MzQyLDE0LjQ3MDljLTMuNTY4MSwxLjY2MzgtNi40NjAzLDUuOTA0OC02LjQ2MDMsOS40NzI5czIuODkyMyw1LjExMTYsNi40NjAzLDMuNDQ3OGw0MS4xOTQ1LTE3LjQ4MzVjMy41NjgxLTEuNjYzOCw2LjQ2MDMtNS45MDQ4LDYuNDYwMy05LjQ3MjlWMjguOTUyN2MwLS4wNjU5LS4wMTc0LS4xMTg5LS4wMTk0LS4xODM0Wm0tNTEuNzc2MSwxNC4wMDE3bC0zMC42OTMtMTEuNzQ3MiwzMS42Mjg4LTE0LjA2MTksMzAuMjY4MiwxMS45MTQxLTMxLjIwNCwxMy44OTUxWiIgc3R5bGU9ImZpbGw6ICNlNTFlM2Q7Ii8+Cjwvc3ZnPg==" alt="Proximo 3" />
+    <div class="c">Booking Card List · <code style="background:#3a3b42;color:#fff">Proximo3.FieldService.BookingCardList</code> · Install &amp; Configuration · <a href="https://proximo3.com">proximo3.com</a></div>
+  </footer>
+
+</div>
+</body>
+</html>
