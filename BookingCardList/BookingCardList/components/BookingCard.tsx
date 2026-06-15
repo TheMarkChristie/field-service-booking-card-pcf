@@ -1,6 +1,6 @@
 import * as React from "react";
 import {
-  Card, Text, Badge, Link, Spinner,
+  Card, Text, Link, Spinner,
   makeStyles, mergeClasses, tokens,
 } from "@fluentui/react-components";
 import { BookingCardVM, STATUS_ACTIONS, StatusActionKey, StatusChoice, StatusLockReason, ACTIVE_FS_STATUSES } from "../types";
@@ -45,6 +45,49 @@ const useStyles = makeStyles({
     flexWrap: "wrap",
     columnGap: "6px",
     rowGap: "4px",
+    minWidth: 0,
+  },
+  // Header pill (incident type / header badge). Unlike Fluent's Badge it has no fixed height,
+  // so multi-line text wraps and the pill grows to fit instead of clipping.
+  chip: {
+    display: "inline-block",
+    boxSizing: "border-box",
+    maxWidth: "200px",
+    whiteSpace: "normal",
+    overflowWrap: "break-word",
+    textAlign: "center",
+    lineHeight: tokens.lineHeightBase200,
+    fontSize: tokens.fontSizeBase200,
+    fontWeight: tokens.fontWeightSemibold,
+    paddingTop: "2px",
+    paddingBottom: "2px",
+    paddingLeft: "8px",
+    paddingRight: "8px",
+    borderRadius: tokens.borderRadiusMedium,
+    borderTopWidth: "1px",
+    borderRightWidth: "1px",
+    borderBottomWidth: "1px",
+    borderLeftWidth: "1px",
+    borderTopStyle: "solid",
+    borderRightStyle: "solid",
+    borderBottomStyle: "solid",
+    borderLeftStyle: "solid",
+  },
+  chipIncident: {
+    backgroundColor: tokens.colorNeutralBackground3,
+    color: tokens.colorNeutralForeground2,
+    borderTopColor: tokens.colorNeutralStroke2,
+    borderRightColor: tokens.colorNeutralStroke2,
+    borderBottomColor: tokens.colorNeutralStroke2,
+    borderLeftColor: tokens.colorNeutralStroke2,
+  },
+  chipHeader: {
+    backgroundColor: tokens.colorTransparentBackground,
+    color: tokens.colorNeutralForeground2,
+    borderTopColor: tokens.colorNeutralStroke1,
+    borderRightColor: tokens.colorNeutralStroke1,
+    borderBottomColor: tokens.colorNeutralStroke1,
+    borderLeftColor: tokens.colorNeutralStroke1,
   },
   priorityPill: {
     flexShrink: 0,
@@ -249,14 +292,10 @@ export const BookingCard: React.FC<BookingCardProps> = (props) => {
         </div>
         <div className={styles.headerRight}>
           {vm.headerBadge ? (
-            <Badge appearance="outline" shape="rounded">
-              {vm.headerBadge}
-            </Badge>
+            <span className={mergeClasses(styles.chip, styles.chipHeader)}>{vm.headerBadge}</span>
           ) : null}
           {vm.incidentType ? (
-            <Badge appearance="tint" color="brand" shape="rounded">
-              {vm.incidentType}
-            </Badge>
+            <span className={mergeClasses(styles.chip, styles.chipIncident)}>{vm.incidentType}</span>
           ) : null}
         </div>
       </div>

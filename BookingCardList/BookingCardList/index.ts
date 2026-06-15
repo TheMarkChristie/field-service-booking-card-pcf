@@ -29,7 +29,6 @@ export class BookingCardList
     };
 
     const props: BookingAppProps = {
-      dataset: context.parameters.bookings,
       service: this.service,
       theme: theme as BookingAppProps["theme"],
       defaultTabNames: [

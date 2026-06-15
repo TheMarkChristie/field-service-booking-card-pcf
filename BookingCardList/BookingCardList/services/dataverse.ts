@@ -48,13 +48,17 @@ interface BookingRow {
  */
 export class BookingDataService {
   private api: WebApi;
+  private userId: string;
   private dateFmt: Intl.DateTimeFormat;
   private timeFmt: Intl.DateTimeFormat;
   private statusIdCache = new Map<number, string | undefined>();
-  private viewFetchCache = new Map<string, string | null>();
+  private myResourceIds?: string[];
 
   constructor(context: ComponentFramework.Context<unknown>) {
     this.api = context.webAPI;
+    // Signed-in user id (used to resolve "my" bookable resource). Dataverse returns it
+    // wrapped in braces in some hosts; strip them so it's a clean GUID for $filter.
+    this.userId = (context.userSettings?.userId ?? "").replace(/[{}]/g, "");
     this.dateFmt = new Intl.DateTimeFormat(undefined, {
       weekday: "short",
       day: "2-digit",
@@ -337,31 +341,68 @@ export class BookingDataService {
   }
 
   /**
-   * Run a Bookable Resource Booking system view (by its name) and return the matching
-   * booking ids. Reads the view's FetchXML then executes it (FetchXML is supported by
-   * the PCF Web API both online and offline).
+   * Bookable resource id(s) for the signed-in user, cached for the control's lifetime.
+   * A user can map to more than one resource (rare), so this returns a list.
    */
-  async getViewBookingIdsByName(viewName: string): Promise<string[]> {
-    let fetchxml = this.viewFetchCache.get(viewName);
-    if (fetchxml === undefined) {
-      const escaped = viewName.replace(/'/g, "''");
-      const meta = await this.api.retrieveMultipleRecords(
-        "savedquery",
-        "?$select=fetchxml" +
-          `&$filter=returnedtypecode eq 'bookableresourcebooking' and querytype eq 0 and name eq '${escaped}'` +
-          "&$top=1"
-      );
-      fetchxml = meta.entities.length ? (meta.entities[0].fetchxml as string) : null;
-      this.viewFetchCache.set(viewName, fetchxml);
+  async getMyResourceIds(): Promise<string[]> {
+    if (this.myResourceIds) return this.myResourceIds;
+    if (!this.userId) {
+      this.myResourceIds = [];
+      return this.myResourceIds;
     }
-    if (!fetchxml) return [];
-    const res = await this.api.retrieveMultipleRecords(
-      BOOKING,
-      "?fetchXml=" + encodeURIComponent(fetchxml)
+    try {
+      const res = await this.api.retrieveMultipleRecords(
+        "bookableresource",
+        `?$select=bookableresourceid&$filter=_userid_value eq ${this.userId}`
+      );
+      this.myResourceIds = res.entities
+        .map((e) => e.bookableresourceid as string)
+        .filter((id) => !!id);
+    } catch (e) {
+      console.warn("[BookingCardList] could not resolve the signed-in user's bookable resource", e);
+      this.myResourceIds = [];
+    }
+    return this.myResourceIds;
+  }
+
+  /**
+   * Booking ids for the signed-in user's resource(s) across the Today / Tomorrow / Complete
+   * window — built entirely in code, so no system views need to be configured. Returns a flat
+   * list of ids; the caller buckets them into the three tabs with bucketOf(). The query spans
+   * from `completeWindowDays` before today (recent finished jobs) up to the end of tomorrow.
+   */
+  async getMyBookingIds(completeWindowDays: number): Promise<string[]> {
+    const resourceIds = await this.getMyResourceIds();
+    if (!resourceIds.length) return [];
+
+    // Local-day boundaries converted to UTC ISO for the starttime filter.
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endOfTomorrow = new Date(
+      startOfToday.getFullYear(), startOfToday.getMonth(), startOfToday.getDate() + 2
     );
-    return res.entities
-      .map((e) => e.bookableresourcebookingid as string)
-      .filter((id) => !!id);
+    const windowStart = new Date(
+      startOfToday.getFullYear(), startOfToday.getMonth(), startOfToday.getDate() - completeWindowDays
+    );
+
+    const ids = new Set<string>();
+    // Keep the "_resource_value eq … or …" chain a sensible length per request.
+    for (const group of chunk(resourceIds, FILTER_CHUNK)) {
+      const resFilter = group.map((id) => `_resource_value eq ${id}`).join(" or ");
+      const filter =
+        `(${resFilter})` +
+        ` and starttime ge ${windowStart.toISOString()}` +
+        ` and starttime lt ${endOfTomorrow.toISOString()}`;
+      const res = await this.api.retrieveMultipleRecords(
+        BOOKING,
+        `?$select=bookableresourcebookingid&$filter=${filter}&$orderby=starttime asc`
+      );
+      for (const e of res.entities) {
+        const id = e.bookableresourcebookingid as string;
+        if (id) ids.add(id);
+      }
+    }
+    return [...ids];
   }
 
   /** Point the booking's Booking Status lookup at the given status record. */

@@ -3,7 +3,7 @@ import { Theme } from "@fluentui/react-components";
 import { BookingList } from "./BookingList";
 import {
   BookingCardVM, CustomStatus, MapsProvider, StatusChoice, ExtraFieldSpec,
-  ACTIVE_FS_STATUSES, TERMINAL_FS_STATUSES, BUILTIN_BUCKETS, STATUS_ACTIONS, TAB_VIEW_NAMES, bucketOf,
+  ACTIVE_FS_STATUSES, TERMINAL_FS_STATUSES, BUILTIN_BUCKETS, STATUS_ACTIONS, COMPLETE_WINDOW_DAYS, bucketOf,
 } from "../types";
 import { BookingDataService } from "../services/dataverse";
 import { buildMapsUrl, errMsg } from "../util/maps";
@@ -11,7 +11,6 @@ import { buildMapsUrl, errMsg } from "../util/maps";
 type T = (key: string, fallback: string) => string;
 
 export interface BookingAppProps {
-  dataset: ComponentFramework.PropertyTypes.DataSet;
   service: BookingDataService;
   theme?: Theme;
   defaultTabNames: string[];
@@ -26,17 +25,11 @@ export interface BookingAppProps {
   t: T;
 }
 
-const EMPTY_BY_TAB: string[][] = [[], [], []];
-
 export const BookingApp: React.FC<BookingAppProps> = (props) => {
   const {
-    dataset, service, theme, defaultTabNames,
+    service, theme, defaultTabNames,
     mapsProvider, extraFields, extrasTitle, headerField, priorityColours, openItem, openUrl, t,
   } = props;
-
-  const idsKey = (dataset.sortedRecordIds ?? []).join(",");
-  const dsLoading = dataset.loading;
-  const datasetIds = idsKey ? idsKey.split(",") : [];
 
   // Stabilise the custom-field list (index.ts rebuilds it each render) so detail loads
   // depend on its contents, not its identity, and don't refetch on every render.
@@ -53,7 +46,7 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
   const [error, setError] = React.useState<string | undefined>();
   const [statusBusy, setStatusBusy] = React.useState<Record<string, boolean>>({});
   const [activeIndex, setActiveIndex] = React.useState(0);
-  const [viewIdsByTab, setViewIdsByTab] = React.useState<string[][]>(EMPTY_BY_TAB);
+  const [bookingIds, setBookingIds] = React.useState<string[]>([]);
   const [reloadToken, setReloadToken] = React.useState(0);
 
   // The custom status option (label + booking status + work order sub-status) is read from the
@@ -70,17 +63,11 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
     };
   }, [service]);
 
-  // Tab config: labels from the manifest defaults, views hard-coded by name.
-  const tabsConfig = React.useMemo(
-    () =>
-      [0, 1, 2].map((i) => ({
-        name: defaultTabNames[i] || `Tab ${i + 1}`,
-        viewName: TAB_VIEW_NAMES[i],
-      })),
+  // Tab labels come from the manifest defaults.
+  const tabNames = React.useMemo(
+    () => [0, 1, 2].map((i) => defaultTabNames[i] || `Tab ${i + 1}`),
     [defaultTabNames]
   );
-  const viewMode = tabsConfig.some((tab) => !!tab.viewName);
-  const viewKey = tabsConfig.map((tab) => tab.viewName ?? "").join("|");
 
   const loadDetailsFor = React.useCallback(
     async (ids: string[]) => {
@@ -92,26 +79,21 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
     [service, extraSpecs, headerSpec]
   );
 
-  // VIEW MODE: load each configured view's booking ids, then detail for the union.
+  // Load the signed-in user's bookings for the Today / Tomorrow / Complete window directly
+  // (no system views required), then load detail for them. bucketOf() sorts the rest.
   React.useEffect(() => {
-    if (!viewMode) return;
     let cancelled = false;
     setLoading(true);
     setError(undefined);
     void (async () => {
       try {
-        const lists = await Promise.all(
-          tabsConfig.map((tab) =>
-            tab.viewName ? service.getViewBookingIdsByName(tab.viewName) : Promise.resolve([])
-          )
-        );
+        const ids = await service.getMyBookingIds(COMPLETE_WINDOW_DAYS);
         if (cancelled) return;
-        setViewIdsByTab(lists);
-        const union = [...new Set(lists.flat())];
-        await loadDetailsFor(union);
+        setBookingIds(ids);
+        await loadDetailsFor(ids);
       } catch (e) {
         if (cancelled) return;
-        console.error("[BookingCardList] Failed to load views", e);
+        console.error("[BookingCardList] Failed to load bookings", e);
         setError(errMsg(e));
       } finally {
         if (!cancelled) setLoading(false);
@@ -120,38 +102,15 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
     return () => {
       cancelled = true;
     };
-  }, [viewMode, viewKey, reloadToken, service, tabsConfig, loadDetailsFor]);
+  }, [reloadToken, service, loadDetailsFor]);
 
-  // BUILT-IN MODE: load detail for the bound dataset's records (bucketed by date/status).
-  React.useEffect(() => {
-    if (viewMode) return;
-    if (dsLoading) return;
-    if (idsKey.length === 0) {
-      setDetails({});
-      return;
-    }
-    setLoading(true);
-    setError(undefined);
-    void (async () => {
-      try {
-        await loadDetailsFor(idsKey.split(","));
-      } catch (e) {
-        console.error("[BookingCardList] Failed to load bookings", e);
-        setError(errMsg(e));
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [viewMode, idsKey, dsLoading, loadDetailsFor]);
-
-  // Built-in bucketing of the bound dataset into the three positions.
-  const builtinByTab = React.useMemo(() => {
-    if (viewMode) return EMPTY_BY_TAB;
+  // Bucket the loaded bookings into Today / Tomorrow / Complete.
+  const idsByTab = React.useMemo(() => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
     const byTab: string[][] = [[], [], []];
-    for (const id of datasetIds) {
+    for (const id of bookingIds) {
       const vm = details[id];
       if (!vm) continue;
       const bucket = bucketOf(vm, today, tomorrow);
@@ -159,13 +118,11 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
       if (pos >= 0) byTab[pos].push(id);
     }
     return byTab;
-  }, [viewMode, idsKey, details, datasetIds]);
+  }, [bookingIds, details]);
 
-  const idsByTab = viewMode ? viewIdsByTab : builtinByTab;
-
-  const tabs = tabsConfig.map((tab, i) => ({
+  const tabs = tabNames.map((name, i) => ({
     key: String(i),
-    label: tab.name,
+    label: name,
     count: idsByTab[i]?.length ?? 0,
   }));
 
@@ -209,12 +166,6 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
     [details, mapsProvider, openUrl]
   );
 
-  const onLoadMore = React.useCallback(() => {
-    if (dataset.paging?.hasNextPage && !dataset.loading) {
-      dataset.paging.loadNextPage();
-    }
-  }, [dataset]);
-
   const doChangeStatus = React.useCallback(
     async (id: string, action: StatusChoice) => {
       setStatusBusy((s) => ({ ...s, [id]: true }));
@@ -243,11 +194,9 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
         const [vm] = await service.getBookingDetails([id], extraSpecs, headerSpec);
         if (vm) setDetails((d) => ({ ...d, [id]: vm }));
 
-        if (viewMode) {
-          setReloadToken((n) => n + 1);
-        } else {
-          dataset.refresh();
-        }
+        // Re-run the self-query so the booking lands in the right tab (e.g. a completed job
+        // moving to the Complete tab) and counts refresh.
+        setReloadToken((n) => n + 1);
       } catch (e) {
         console.error("[BookingCardList] Failed to update status", e);
         setError(errMsg(e));
@@ -255,7 +204,7 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
         setStatusBusy((s) => ({ ...s, [id]: false }));
       }
     },
-    [service, dataset, viewMode, effectiveCustomStatus, extraSpecs, headerSpec, t]
+    [service, effectiveCustomStatus, extraSpecs, headerSpec, t]
   );
 
   const onChangeStatus = React.useCallback(
@@ -275,9 +224,8 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
       onTabSelect={onTabSelect}
       bookingIds={visibleIds}
       details={details}
-      loading={loading || (!viewMode && dsLoading)}
+      loading={loading}
       error={error}
-      hasNextPage={!viewMode && !!dataset.paging?.hasNextPage}
       statusBusy={statusBusy}
       boardBusy={boardBusy}
       statusLockReasons={statusLockReasons}
@@ -286,7 +234,6 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
       extrasTitle={extrasTitle}
       priorityColours={priorityColours}
       customStatusName={effectiveCustomStatus?.name}
-      onLoadMore={onLoadMore}
       onOpen={onOpen}
       onOpenMaps={onOpenMaps}
       onChangeStatus={onChangeStatus}

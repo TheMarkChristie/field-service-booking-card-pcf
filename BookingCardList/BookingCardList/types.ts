@@ -35,12 +35,10 @@ export const ACTIVE_FS_STATUSES = new Set<number>([
 export type BuiltinBucket = "today" | "tomorrow" | "complete";
 export const BUILTIN_BUCKETS: BuiltinBucket[] = ["today", "tomorrow", "complete"];
 
-// Hard-coded Bookable Resource Booking view names each tab runs (in tab order).
-export const TAB_VIEW_NAMES: (string | undefined)[] = [
-  "My Bookings - Today",
-  "My Bookings - Tomorrow",
-  "My Bookings - Completed",
-];
+// How many days back the Complete tab shows finished (Completed/Cancelled) jobs. The control
+// queries the signed-in user's bookings itself (today, tomorrow, and finished jobs within this
+// window), so no system views need to be configured.
+export const COMPLETE_WINDOW_DAYS = 7;
 
 // Terminal statuses: a booking here is finished. Its status can never be changed again,
 // but it can still be opened to view the record. (Also drives the "complete" bucket.)

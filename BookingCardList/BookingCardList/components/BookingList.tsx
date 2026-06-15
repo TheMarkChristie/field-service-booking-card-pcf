@@ -1,7 +1,7 @@
 import * as React from "react";
 import {
   FluentProvider, webLightTheme, Theme,
-  TabList, Tab, CounterBadge, Text, Spinner, Button,
+  TabList, Tab, CounterBadge, Text, Spinner,
   makeStyles, tokens,
 } from "@fluentui/react-components";
 import { BookingCard } from "./BookingCard";
@@ -65,11 +65,6 @@ const useStyles = makeStyles({
     paddingTop: "32px",
     paddingBottom: "32px",
   },
-  loadMore: {
-    display: "flex",
-    justifyContent: "center",
-    paddingTop: "4px",
-  },
   badge: {
     marginLeft: "6px",
   },
@@ -90,7 +85,6 @@ export interface BookingListProps {
   details: Record<string, BookingCardVM>;
   loading: boolean;
   error?: string;
-  hasNextPage: boolean;
   statusBusy: Record<string, boolean>;
   /** True while any card's status change is in flight (freezes the rest). */
   boardBusy?: boolean;
@@ -100,7 +94,6 @@ export interface BookingListProps {
   extrasTitle?: string;
   priorityColours?: Record<string, string>;
   customStatusName?: string;
-  onLoadMore: () => void;
   onOpen: (id: string) => void;
   onOpenMaps: (id: string) => void;
   onChangeStatus: (id: string, action: StatusChoice) => void;
@@ -109,7 +102,7 @@ export interface BookingListProps {
 
 export const BookingList: React.FC<BookingListProps> = (props) => {
   const styles = useStyles();
-  const { tabs, activeTab, bookingIds, details, loading, error, hasNextPage, statusBusy, t } = props;
+  const { tabs, activeTab, bookingIds, details, loading, error, statusBusy, t } = props;
   const hasAnyDetail = bookingIds.some((id) => details[id]);
 
   return (
@@ -183,13 +176,6 @@ export const BookingList: React.FC<BookingListProps> = (props) => {
                   />
                 );
               })}
-              {hasNextPage ? (
-                <div className={styles.loadMore}>
-                  <Button appearance="subtle" disabled={loading} onClick={props.onLoadMore}>
-                    {loading ? <Spinner size="tiny" /> : t("LoadMore", "Load more")}
-                  </Button>
-                </div>
-              ) : null}
             </div>
           ) : null}
         </div>

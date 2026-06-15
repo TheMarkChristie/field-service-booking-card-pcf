@@ -7,7 +7,7 @@ booking's status inline.
 
 - **Control:** `Proximo3.FieldService.BookingCardList`
 - **Publisher prefix:** `prx3`
-- **Current version:** `0.0.23`
+- **Current version:** `0.0.25`
 - **Platform libraries:** React 16.14 + Fluent UI v9 (provided by the platform — not bundled)
 
 ---
@@ -40,8 +40,9 @@ Each booking renders as a card showing:
 
 Behaviour:
 
-- **Tabs** — *Today*, *Tomorrow*, *Complete*, each with a count badge. Each tab runs a
-  Bookable Resource Booking **view** (see [Tabs & views](#tabs--views)).
+- **Tabs** — *Today*, *Tomorrow*, *Complete*, each with a count badge. The control queries the
+  signed-in user's own bookings itself and sorts them into the three tabs — **no system views to
+  set up** (see [Tabs & how bookings are loaded](#tabs--how-bookings-are-loaded)).
 - **Tap a card** → opens the booking record.
 - **Tap the address** → opens the native maps app at that location.
 - **Update status** dropdown → Traveling / In Progress / Cancelled, plus an optional
@@ -108,24 +109,25 @@ property is blank or the value is empty.
   Needed*) above the values. The whole block — heading included — only renders when at least one
   custom value is present.
 
-### Tabs & views
+### Tabs & how bookings are loaded
 
-The three tabs run three **system views** of Bookable Resource Bookings, matched **by name**.
-The names are hard-coded in [`BookingCardList/types.ts`](BookingCardList/BookingCardList/types.ts)
-as `TAB_VIEW_NAMES`:
+**No system views are required.** The control loads its own data in code:
 
-```
-My Bookings - Today
-My Bookings - Tomorrow
-My Bookings - Completed
-```
+1. It resolves the **signed-in user's Bookable Resource** (`bookableresource` where `userid` is the
+   current user).
+2. It runs one query for that resource's bookings from `COMPLETE_WINDOW_DAYS` before today up to the
+   end of tomorrow.
+3. [`bucketOf()`](BookingCardList/BookingCardList/types.ts) sorts each booking into a tab:
+   **Complete** if it's Completed/Cancelled, otherwise **Today** or **Tomorrow** by start date.
 
-- Create those three system views (filtered however you like — e.g. current user's resource +
-  date, or completed in the last N days). The control reads each view's FetchXML and runs it,
-  so each tab reflects exactly that view's **filter and sort**.
-- Because the tabs run their own views, **the view the control is placed on does not drive the
-  card content** — bind it to anything.
-- To change which views are used, edit `TAB_VIEW_NAMES` and redeploy.
+- The **Complete** tab shows finished jobs from the last **`COMPLETE_WINDOW_DAYS`** days (default `7`,
+  by job start date), set in [`BookingCardList/types.ts`](BookingCardList/BookingCardList/types.ts).
+  Change it there and redeploy.
+- Because the control self-queries, **the view/subgrid it's placed on does not drive the card
+  content** — bind it to anything.
+- Requires `bookableresource` and `bookableresourcebooking` to be in the **mobile offline profile**
+  (booking already is; add the resource table if it isn't) so it works offline.
+- The tab **labels** are still configurable via the Tab 1/2/3 Name properties.
 
 ### Getting the GUIDs for the custom option
 
@@ -254,4 +256,5 @@ via `updateRecord` then re-query the affected booking.
 | Errors are invisible | The control logs `[BookingCardList] …` to the browser console (F12) and shows a red banner on the card area. |
 | Custom option doesn't write the WO status | Confirm the GUID is a `msdyn_workordersubstatus` record and the booking has a work order. If the write throws on the `msdyn_substatus` nav property, it may need PascalCase `msdyn_SubStatus`. |
 | Theme looks wrong | The control follows the app's modern theme; ensure the app uses the "new look". |
+
 
