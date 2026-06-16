@@ -7,7 +7,7 @@ booking's status inline.
 
 - **Control:** `Proximo3.FieldService.BookingCardList`
 - **Publisher prefix:** `prx3`
-- **Current version:** `0.0.27`
+- **Current version:** `0.0.28`
 - **Platform libraries:** React 16.14 + Fluent UI v9 (provided by the platform — not bundled)
 
 ---
@@ -63,7 +63,11 @@ Behaviour:
   (via `context.fluentDesignLanguage.tokenTheme`).
 - **Responsive** — single column on a phone, multiple columns on a wide screen.
 - **Offline-capable** — all reads/writes go through `context.webAPI`, which resolves against
-  the mobile offline store when offline (provided the tables are in the offline profile).
+  the mobile offline store when offline. Every query uses **FetchXML** (not OData `$filter`),
+  which is the documented offline-safe path: lookup filtering, `eq-userid`, `in`, and date
+  operators all work in mobile offline, whereas OData `_lookup_value` filters/selects do not.
+  The same code runs online and offline — no connectivity branching. Requires the
+  `bookableresource` and `bookableresourcebooking` tables in the offline profile.
 
 ---
 

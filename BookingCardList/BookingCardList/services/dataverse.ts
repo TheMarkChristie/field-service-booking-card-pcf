@@ -12,13 +12,43 @@ const WORKORDERPRODUCT = "msdyn_workorderproduct";
 const BOOKINGSTATUS = "bookingstatus";
 const BOOKINGSTATUS_SET = "bookingstatuses";
 
-// Keep OData $filter "or" chains a sensible length.
-const FILTER_CHUNK = 20;
+// Keep FetchXML "in" value lists a sensible length per request.
+const FETCH_CHUNK = 50;
 
 function chunk<T>(arr: T[], size: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
   return out;
+}
+
+function xmlEscape(v: string): string {
+  return v
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+/** FetchXML "in" condition over a list of ids/values. */
+function inCondition(attribute: string, values: string[]): string {
+  const vals = values.map((v) => `<value>${xmlEscape(v)}</value>`).join("");
+  return `<condition attribute="${attribute}" operator="in">${vals}</condition>`;
+}
+
+/** FetchXML datetime literal (UTC ISO 8601). */
+function fxDate(d: Date): string {
+  return d.toISOString();
+}
+
+/**
+ * For a custom-field name, the FetchXML attribute to request. Lookups entered as the OData
+ * "_logicalname_value" form map back to the lookup's logical name for FetchXML; the result
+ * still carries the "_logicalname_value" / FormattedValue keys that readExtra() reads.
+ */
+function fxAttrName(field: string): string {
+  const m = /^_(.+)_value$/.exec(field);
+  return m ? m[1] : field;
 }
 
 interface WorkOrderInfo {
@@ -42,24 +72,21 @@ interface BookingRow {
 }
 
 /**
- * All Dataverse access for the control. Uses context.webAPI, which also resolves
- * against the Field Service mobile offline store when the app is offline (provided
- * the tables are in the offline profile). Uses flat retrieveMultiple calls (no $expand)
- * for reliability.
+ * All Dataverse access for the control. Uses context.webAPI, which also resolves against the
+ * Field Service mobile offline store when the app is offline (provided the tables are in the
+ * offline profile). Every query uses FetchXML (not OData $filter): FetchXML is the documented
+ * offline-safe path — lookup filters, "eq-userid", "in", and date operators all work offline,
+ * whereas OData "_lookup_value" filters/selects are not supported in mobile offline. Works
+ * identically online.
  */
 export class BookingDataService {
   private api: WebApi;
-  private userId: string;
   private dateFmt: Intl.DateTimeFormat;
   private timeFmt: Intl.DateTimeFormat;
   private statusIdCache = new Map<number, string | undefined>();
-  private myResourceIds?: string[];
 
   constructor(context: ComponentFramework.Context<unknown>) {
     this.api = context.webAPI;
-    // Signed-in user id (used to resolve "my" bookable resource). Dataverse returns it
-    // wrapped in braces in some hosts; strip them so it's a clean GUID for $filter.
-    this.userId = (context.userSettings?.userId ?? "").replace(/[{}]/g, "");
     this.dateFmt = new Intl.DateTimeFormat(undefined, {
       weekday: "short",
       day: "2-digit",
@@ -93,14 +120,20 @@ export class BookingDataService {
     const workOrderIds = new Set<string>();
     const statusIds = new Set<string>();
 
-    for (const ids of chunk(bookingIds, FILTER_CHUNK)) {
-      const filter = ids.map((id) => `bookableresourcebookingid eq ${id}`).join(" or ");
-      const options =
-        "?$select=bookableresourcebookingid,starttime,endtime," +
-        "msdyn_estimatedtravelduration,_msdyn_workorder_value,_bookingstatus_value,_resource_value" +
-        `&$filter=${filter}`;
-      const res = await this.api.retrieveMultipleRecords(BOOKING, options);
-      for (const e of res.entities) {
+    for (const ids of chunk(bookingIds, FETCH_CHUNK)) {
+      const fx =
+        `<fetch><entity name="${BOOKING}">` +
+        `<attribute name="bookableresourcebookingid" />` +
+        `<attribute name="starttime" />` +
+        `<attribute name="endtime" />` +
+        `<attribute name="msdyn_estimatedtravelduration" />` +
+        `<attribute name="msdyn_workorder" />` +
+        `<attribute name="bookingstatus" />` +
+        `<attribute name="resource" />` +
+        `<filter>${inCondition("bookableresourcebookingid", ids)}</filter>` +
+        `</entity></fetch>`;
+      const entities = await this.fetchXml(BOOKING, fx);
+      for (const e of entities) {
         const workOrderId = (e._msdyn_workorder_value as string) || undefined;
         const statusId = (e._bookingstatus_value as string) || undefined;
         if (workOrderId) workOrderIds.add(workOrderId);
@@ -198,26 +231,30 @@ export class BookingDataService {
       map.set(recId, rec);
     };
 
-    for (const chunkIds of chunk(ids, FILTER_CHUNK)) {
-      const filter = chunkIds.map((id) => `${idAttr} eq ${id}`).join(" or ");
+    const buildFetch = (attrFields: string[], chunkIds: string[]): string => {
+      const attrs = [idAttr, ...attrFields.map(fxAttrName)]
+        .map((a) => `<attribute name="${a}" />`)
+        .join("");
+      return (
+        `<fetch><entity name="${entity}">${attrs}` +
+        `<filter>${inCondition(idAttr, chunkIds)}</filter>` +
+        `</entity></fetch>`
+      );
+    };
+
+    for (const chunkIds of chunk(ids, FETCH_CHUNK)) {
       try {
-        const res = await this.api.retrieveMultipleRecords(
-          entity,
-          `?$select=${idAttr},${fields.join(",")}&$filter=${filter}`
-        );
-        for (const e of res.entities) {
+        const entities = await this.fetchXml(entity, buildFetch(fields, chunkIds));
+        for (const e of entities) {
           for (const f of fields) put(e[idAttr] as string, f, this.readExtra(e, f));
         }
       } catch (err) {
-        // One bad field would 400 the combined query — retry each field on its own.
+        // One bad field name would fail the combined query — retry each field on its own.
         console.warn("[BookingCardList] combined extras query failed; retrying per field", err);
         for (const f of fields) {
           try {
-            const res = await this.api.retrieveMultipleRecords(
-              entity,
-              `?$select=${idAttr},${f}&$filter=${filter}`
-            );
-            for (const e of res.entities) put(e[idAttr] as string, f, this.readExtra(e, f));
+            const entities = await this.fetchXml(entity, buildFetch([f], chunkIds));
+            for (const e of entities) put(e[idAttr] as string, f, this.readExtra(e, f));
           } catch (e2) {
             console.warn(`[BookingCardList] extra field '${f}' on ${entity} could not be read`, e2);
           }
@@ -246,15 +283,23 @@ export class BookingDataService {
   private async getWorkOrders(workOrderIds: string[]): Promise<Map<string, WorkOrderInfo>> {
     const map = new Map<string, WorkOrderInfo>();
     if (workOrderIds.length === 0) return map;
-    for (const ids of chunk(workOrderIds, FILTER_CHUNK)) {
-      const filter = ids.map((id) => `msdyn_workorderid eq ${id}`).join(" or ");
-      const options =
-        "?$select=msdyn_workorderid,msdyn_name,_msdyn_serviceaccount_value," +
-        "_msdyn_primaryincidenttype_value,_msdyn_priority_value,msdyn_address1,msdyn_city,msdyn_postalcode," +
-        "msdyn_latitude,msdyn_longitude" +
-        `&$filter=${filter}`;
-      const res = await this.api.retrieveMultipleRecords(WORKORDER, options);
-      for (const w of res.entities) {
+    for (const ids of chunk(workOrderIds, FETCH_CHUNK)) {
+      const fx =
+        `<fetch><entity name="${WORKORDER}">` +
+        `<attribute name="msdyn_workorderid" />` +
+        `<attribute name="msdyn_name" />` +
+        `<attribute name="msdyn_serviceaccount" />` +
+        `<attribute name="msdyn_primaryincidenttype" />` +
+        `<attribute name="msdyn_priority" />` +
+        `<attribute name="msdyn_address1" />` +
+        `<attribute name="msdyn_city" />` +
+        `<attribute name="msdyn_postalcode" />` +
+        `<attribute name="msdyn_latitude" />` +
+        `<attribute name="msdyn_longitude" />` +
+        `<filter>${inCondition("msdyn_workorderid", ids)}</filter>` +
+        `</entity></fetch>`;
+      const entities = await this.fetchXml(WORKORDER, fx);
+      for (const w of entities) {
         const lat = w.msdyn_latitude as number | null;
         const lng = w.msdyn_longitude as number | null;
         const addressText = [w.msdyn_address1, w.msdyn_city, w.msdyn_postalcode]
@@ -277,14 +322,19 @@ export class BookingDataService {
   private async getWorkOrderProducts(workOrderIds: string[]): Promise<Map<string, ProductLine[]>> {
     const map = new Map<string, ProductLine[]>();
     if (workOrderIds.length === 0) return map;
-    for (const ids of chunk(workOrderIds, FILTER_CHUNK)) {
-      const woFilter = ids.map((id) => `_msdyn_workorder_value eq ${id}`).join(" or ");
-      const options =
-        "?$select=msdyn_workorderproductid,msdyn_name,msdyn_estimatequantity," +
-        "msdyn_quantity,_msdyn_workorder_value" +
-        `&$filter=(${woFilter}) and statecode eq 0`;
-      const res = await this.api.retrieveMultipleRecords(WORKORDERPRODUCT, options);
-      for (const e of res.entities) {
+    for (const ids of chunk(workOrderIds, FETCH_CHUNK)) {
+      const fx =
+        `<fetch><entity name="${WORKORDERPRODUCT}">` +
+        `<attribute name="msdyn_workorderproductid" />` +
+        `<attribute name="msdyn_name" />` +
+        `<attribute name="msdyn_estimatequantity" />` +
+        `<attribute name="msdyn_quantity" />` +
+        `<attribute name="msdyn_workorder" />` +
+        `<filter type="and">${inCondition("msdyn_workorder", ids)}` +
+        `<condition attribute="statecode" operator="eq" value="0" /></filter>` +
+        `</entity></fetch>`;
+      const entities = await this.fetchXml(WORKORDERPRODUCT, fx);
+      for (const e of entities) {
         const woId = e._msdyn_workorder_value as string;
         if (!woId) continue;
         const qty = (e.msdyn_estimatequantity ?? e.msdyn_quantity ?? null) as number | null;
@@ -304,11 +354,15 @@ export class BookingDataService {
   private async getStatusFsValues(statusIds: string[]): Promise<Map<string, number>> {
     const map = new Map<string, number>();
     if (statusIds.length === 0) return map;
-    for (const ids of chunk(statusIds, FILTER_CHUNK)) {
-      const filter = ids.map((id) => `bookingstatusid eq ${id}`).join(" or ");
-      const options = `?$select=bookingstatusid,msdyn_fieldservicestatus&$filter=${filter}`;
-      const res = await this.api.retrieveMultipleRecords(BOOKINGSTATUS, options);
-      for (const s of res.entities) {
+    for (const ids of chunk(statusIds, FETCH_CHUNK)) {
+      const fx =
+        `<fetch><entity name="${BOOKINGSTATUS}">` +
+        `<attribute name="bookingstatusid" />` +
+        `<attribute name="msdyn_fieldservicestatus" />` +
+        `<filter>${inCondition("bookingstatusid", ids)}</filter>` +
+        `</entity></fetch>`;
+      const entities = await this.fetchXml(BOOKINGSTATUS, fx);
+      for (const s of entities) {
         const fs = s.msdyn_fieldservicestatus as number | null;
         if (fs != null) map.set(s.bookingstatusid as string, fs);
       }
@@ -317,95 +371,37 @@ export class BookingDataService {
   }
 
   /**
-   * Read the current value of one or more environment variables by schema name.
-   * Returns a map keyed by lowercased schema name. Current value = the set value,
-   * else the definition's default value.
-   */
-  async getEnvVars(schemaNames: string[]): Promise<Map<string, string>> {
-    const map = new Map<string, string>();
-    if (schemaNames.length === 0) return map;
-    const filter = schemaNames.map((n) => `schemaname eq '${n}'`).join(" or ");
-    const res = await this.api.retrieveMultipleRecords(
-      "environmentvariabledefinition",
-      "?$select=schemaname,defaultvalue" +
-        "&$expand=environmentvariabledefinition_environmentvariablevalue($select=value)" +
-        `&$filter=${filter}`
-    );
-    for (const d of res.entities) {
-      const schema = d.schemaname as string;
-      if (!schema) continue;
-      const values = d.environmentvariabledefinition_environmentvariablevalue as Entity[] | undefined;
-      const current = ((values?.length ? values[0].value : undefined) ?? d.defaultvalue) as
-        | string
-        | undefined;
-      if (current != null) map.set(schema.toLowerCase(), current);
-    }
-    return map;
-  }
-
-  /**
-   * Bookable resource id(s) for the signed-in user, cached for the control's lifetime.
-   * A user can map to more than one resource (rare), so this returns a list.
-   */
-  async getMyResourceIds(): Promise<string[]> {
-    if (this.myResourceIds) return this.myResourceIds;
-    if (!this.userId) {
-      this.myResourceIds = [];
-      return this.myResourceIds;
-    }
-    try {
-      const res = await this.api.retrieveMultipleRecords(
-        "bookableresource",
-        `?$select=bookableresourceid&$filter=_userid_value eq ${this.userId}`
-      );
-      this.myResourceIds = res.entities
-        .map((e) => e.bookableresourceid as string)
-        .filter((id) => !!id);
-    } catch (e) {
-      console.warn("[BookingCardList] could not resolve the signed-in user's bookable resource", e);
-      this.myResourceIds = [];
-    }
-    return this.myResourceIds;
-  }
-
-  /**
-   * Booking ids for the signed-in user's resource(s) across the Today / Tomorrow / Complete
-   * window — built entirely in code, so no system views need to be configured. Returns a flat
-   * list of ids; the caller buckets them into the three tabs with bucketOf(). The query spans
-   * from `completeWindowDays` before today (recent finished jobs) up to the end of tomorrow.
+   * Booking ids for the signed-in user across the Today / Tomorrow / Complete window — built in
+   * code, so no system views are needed. The caller buckets them with bucketOf(). The window
+   * spans from `completeWindowDays` before today (recent finished jobs) to the end of tomorrow.
+   *
+   * Uses FetchXML so it works in mobile offline: the signed-in user's resource is matched via
+   * `eq-userid` on a link to bookableresource (no unsupported "_resource_value" lookup filter).
    */
   async getMyBookingIds(completeWindowDays: number): Promise<string[]> {
-    const resourceIds = await this.getMyResourceIds();
-    if (!resourceIds.length) return [];
-
-    // Local-day boundaries converted to UTC ISO for the starttime filter.
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const windowStart = new Date(
+      startOfToday.getFullYear(), startOfToday.getMonth(),
+      startOfToday.getDate() - Math.max(0, completeWindowDays)
+    );
     const endOfTomorrow = new Date(
       startOfToday.getFullYear(), startOfToday.getMonth(), startOfToday.getDate() + 2
     );
-    const windowStart = new Date(
-      startOfToday.getFullYear(), startOfToday.getMonth(), startOfToday.getDate() - completeWindowDays
-    );
-
-    const ids = new Set<string>();
-    // Keep the "_resource_value eq … or …" chain a sensible length per request.
-    for (const group of chunk(resourceIds, FILTER_CHUNK)) {
-      const resFilter = group.map((id) => `_resource_value eq ${id}`).join(" or ");
-      const filter =
-        `(${resFilter})` +
-        ` and starttime ge ${windowStart.toISOString()}` +
-        ` and starttime lt ${endOfTomorrow.toISOString()}`;
-      const res = await this.api.retrieveMultipleRecords(
-        BOOKING,
-        `?$select=bookableresourcebookingid&$filter=${filter}&$orderby=starttime asc`
-      );
-      for (const e of res.entities) {
-        const id = e.bookableresourcebookingid as string;
-        if (id) ids.add(id);
-      }
-    }
-    return [...ids];
+    const fx =
+      `<fetch><entity name="${BOOKING}">` +
+      `<attribute name="bookableresourcebookingid" />` +
+      `<filter type="and">` +
+      `<condition attribute="starttime" operator="ge" value="${fxDate(windowStart)}" />` +
+      `<condition attribute="starttime" operator="lt" value="${fxDate(endOfTomorrow)}" />` +
+      `</filter>` +
+      `<link-entity name="bookableresource" from="bookableresourceid" to="resource" link-type="inner">` +
+      `<filter><condition attribute="userid" operator="eq-userid" /></filter>` +
+      `</link-entity>` +
+      `<order attribute="starttime" />` +
+      `</entity></fetch>`;
+    const entities = await this.fetchXml(BOOKING, fx);
+    return entities.map((e) => e.bookableresourcebookingid as string).filter((id) => !!id);
   }
 
   /**
@@ -418,15 +414,17 @@ export class BookingDataService {
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + span);
-    const filter =
-      `starttime ge ${start.toISOString()} and starttime lt ${end.toISOString()}`;
-    const res = await this.api.retrieveMultipleRecords(
-      BOOKING,
-      `?$select=bookableresourcebookingid&$filter=${filter}&$orderby=starttime asc`
-    );
-    return res.entities
-      .map((e) => e.bookableresourcebookingid as string)
-      .filter((id) => !!id);
+    const fx =
+      `<fetch><entity name="${BOOKING}">` +
+      `<attribute name="bookableresourcebookingid" />` +
+      `<filter type="and">` +
+      `<condition attribute="starttime" operator="ge" value="${fxDate(start)}" />` +
+      `<condition attribute="starttime" operator="lt" value="${fxDate(end)}" />` +
+      `</filter>` +
+      `<order attribute="starttime" />` +
+      `</entity></fetch>`;
+    const entities = await this.fetchXml(BOOKING, fx);
+    return entities.map((e) => e.bookableresourcebookingid as string).filter((id) => !!id);
   }
 
   /** Point the booking's Booking Status lookup at the given status record. */
@@ -451,13 +449,15 @@ export class BookingDataService {
    */
   async getCustomStatusSettings(): Promise<CustomStatus | undefined> {
     try {
-      const res = await this.api.retrieveMultipleRecords(
-        "msdyn_fieldservicesetting",
-        "?$select=prx3_customstatuslabel,_prx3_custombookingstatus_value," +
-          "_prx3_customworkordersubstatus_value&$top=1"
-      );
-      if (!res.entities.length) return undefined;
-      const s = res.entities[0];
+      const fx =
+        `<fetch top="1"><entity name="msdyn_fieldservicesetting">` +
+        `<attribute name="prx3_customstatuslabel" />` +
+        `<attribute name="prx3_custombookingstatus" />` +
+        `<attribute name="prx3_customworkordersubstatus" />` +
+        `</entity></fetch>`;
+      const entities = await this.fetchXml("msdyn_fieldservicesetting", fx);
+      if (!entities.length) return undefined;
+      const s = entities[0];
       const bookingStatusId = (s._prx3_custombookingstatus_value as string) || undefined;
       if (!bookingStatusId) return undefined; // feature not configured in this environment
       const label = (s.prx3_customstatuslabel as string) || "";
@@ -478,14 +478,26 @@ export class BookingDataService {
     if (this.statusIdCache.has(fieldServiceStatus)) {
       return this.statusIdCache.get(fieldServiceStatus);
     }
-    const options =
-      "?$select=bookingstatusid" +
-      `&$filter=msdyn_fieldservicestatus eq ${fieldServiceStatus} and statecode eq 0` +
-      "&$top=1";
-    const res = await this.api.retrieveMultipleRecords(BOOKINGSTATUS, options);
-    const id = res.entities.length ? (res.entities[0].bookingstatusid as string) : undefined;
+    const fx =
+      `<fetch top="1"><entity name="${BOOKINGSTATUS}">` +
+      `<attribute name="bookingstatusid" />` +
+      `<filter type="and">` +
+      `<condition attribute="msdyn_fieldservicestatus" operator="eq" value="${fieldServiceStatus}" />` +
+      `<condition attribute="statecode" operator="eq" value="0" />` +
+      `</filter></entity></fetch>`;
+    const entities = await this.fetchXml(BOOKINGSTATUS, fx);
+    const id = entities.length ? (entities[0].bookingstatusid as string) : undefined;
     this.statusIdCache.set(fieldServiceStatus, id);
     return id;
+  }
+
+  /** Run a FetchXML query via the Web API (resolves online or against the offline store). */
+  private async fetchXml(entity: string, fetchXml: string): Promise<Entity[]> {
+    const res = await this.api.retrieveMultipleRecords(
+      entity,
+      "?fetchXml=" + encodeURIComponent(fetchXml)
+    );
+    return res.entities;
   }
 
   private parseDate(iso: string): Date | undefined {
