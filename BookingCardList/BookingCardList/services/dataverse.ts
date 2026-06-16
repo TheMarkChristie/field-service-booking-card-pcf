@@ -36,6 +36,7 @@ interface BookingRow {
   workOrderId?: string;
   statusId?: string;
   statusName: string;
+  resourceName: string;
   startIso?: string;
   travelMinutes?: number;
 }
@@ -96,7 +97,7 @@ export class BookingDataService {
       const filter = ids.map((id) => `bookableresourcebookingid eq ${id}`).join(" or ");
       const options =
         "?$select=bookableresourcebookingid,starttime,endtime," +
-        "msdyn_estimatedtravelduration,_msdyn_workorder_value,_bookingstatus_value" +
+        "msdyn_estimatedtravelduration,_msdyn_workorder_value,_bookingstatus_value,_resource_value" +
         `&$filter=${filter}`;
       const res = await this.api.retrieveMultipleRecords(BOOKING, options);
       for (const e of res.entities) {
@@ -109,6 +110,7 @@ export class BookingDataService {
           workOrderId,
           statusId,
           statusName: (e[`_bookingstatus_value${FV}`] as string) || "",
+          resourceName: (e[`_resource_value${FV}`] as string) || "",
           startIso: (e.starttime as string) ?? undefined,
           travelMinutes: (e.msdyn_estimatedtravelduration as number) ?? undefined,
         });
@@ -164,6 +166,7 @@ export class BookingDataService {
           travelText: this.formatDuration(b.travelMinutes),
           bookingStatusName: b.statusName,
           fieldServiceStatus: b.statusId ? statusFs.get(b.statusId) : undefined,
+          resourceName: b.resourceName,
           priorityName: wo?.priority ?? "",
           products: b.workOrderId ? productsByWo.get(b.workOrderId) ?? [] : [],
           extras,
@@ -403,6 +406,27 @@ export class BookingDataService {
       }
     }
     return [...ids];
+  }
+
+  /**
+   * Booking ids for ALL engineers (every resource) from today up to `days` ahead, ordered by
+   * start time — for the optional read-only "All Jobs" tab. Note: offline this returns only what
+   * the mobile offline profile holds (usually just the signed-in user's own bookings).
+   */
+  async getAllBookingIds(days: number): Promise<string[]> {
+    const span = Math.max(1, Math.floor(days));
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + span);
+    const filter =
+      `starttime ge ${start.toISOString()} and starttime lt ${end.toISOString()}`;
+    const res = await this.api.retrieveMultipleRecords(
+      BOOKING,
+      `?$select=bookableresourcebookingid&$filter=${filter}&$orderby=starttime asc`
+    );
+    return res.entities
+      .map((e) => e.bookableresourcebookingid as string)
+      .filter((id) => !!id);
   }
 
   /** Point the booking's Booking Status lookup at the given status record. */

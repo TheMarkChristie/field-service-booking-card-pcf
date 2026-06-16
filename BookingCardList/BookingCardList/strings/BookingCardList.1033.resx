@@ -74,6 +74,15 @@
   <data name="Tab3Name_Display" xml:space="preserve"><value>Tab 3 Name (default)</value></data>
   <data name="Tab3Name_Desc" xml:space="preserve"><value>Fallback name for tab 3. Overridden by env var prx3_BookingTab3Name. Defaults to Complete.</value></data>
 
+  <data name="AllJobsTabEnabled_Display" xml:space="preserve"><value>Show All Jobs Tab</value></data>
+  <data name="AllJobsTabEnabled_Desc" xml:space="preserve"><value>Add a final tab listing all engineers' bookings for the next N days (read-only). Off by default.</value></data>
+  <data name="AllJobsTabName_Display" xml:space="preserve"><value>All Jobs Tab Name (default)</value></data>
+  <data name="AllJobsTabName_Desc" xml:space="preserve"><value>Label for the All Jobs tab. Defaults to All Jobs.</value></data>
+  <data name="AllJobsDays_Display" xml:space="preserve"><value>All Jobs: Days Ahead</value></data>
+  <data name="AllJobsDays_Desc" xml:space="preserve"><value>How many days ahead (from today) the All Jobs tab covers. Defaults to 7.</value></data>
+
+  <data name="Label_Engineer" xml:space="preserve"><value>Engineer</value></data>
+
   <data name="ExtraField1_Display" xml:space="preserve"><value>Extra Field 1 (column name)</value></data>
   <data name="ExtraField2_Display" xml:space="preserve"><value>Extra Field 2 (column name)</value></data>
   <data name="ExtraField3_Display" xml:space="preserve"><value>Extra Field 3 (column name)</value></data>
