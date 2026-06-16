@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest>
-  <control namespace="Proximo3.FieldService" constructor="BookingCardList" version="0.0.28"
+  <control namespace="Proximo3.FieldService" constructor="BookingCardList" version="0.0.29"
     display-name-key="BookingCardList_Display" description-key="BookingCardList_Desc"
     control-type="virtual">
 
@@ -26,7 +26,10 @@
          Shown last, after Complete, only when enabled. Online-oriented (the mobile offline
          profile usually only holds the signed-in user's own bookings). -->
     <property name="allJobsTabEnabled" display-name-key="AllJobsTabEnabled_Display" description-key="AllJobsTabEnabled_Desc"
-      of-type="TwoOptions" usage="input" required="false" default-value="false" />
+      of-type="Enum" usage="input" required="false" default-value="0">
+      <value name="no" display-name-key="AllJobsTabEnabled_No">0</value>
+      <value name="yes" display-name-key="AllJobsTabEnabled_Yes">1</value>
+    </property>
     <property name="allJobsTabName" display-name-key="AllJobsTabName_Display" description-key="AllJobsTabName_Desc"
       of-type="SingleLine.Text" usage="input" required="false" default-value="All Jobs" />
     <property name="allJobsDays" display-name-key="AllJobsDays_Display" description-key="AllJobsDays_Desc"
