@@ -1,4 +1,4 @@
-import { BookingCardVM, ProductLine, ExtraFieldSpec, CustomStatus } from "../types";
+import { BookingCardVM, ProductLine, ExtraFieldSpec, CustomStatus, ACTIVE_FS_STATUSES } from "../types";
 
 type WebApi = ComponentFramework.WebApi;
 type Entity = ComponentFramework.WebApi.Entity;
@@ -388,20 +388,58 @@ export class BookingDataService {
     const endOfTomorrow = new Date(
       startOfToday.getFullYear(), startOfToday.getMonth(), startOfToday.getDate() + 2
     );
-    const fx =
+
+    // The signed-in user's resource, matched via eq-userid (offline-safe, no _resource_value filter).
+    const resourceLink =
+      `<link-entity name="bookableresource" from="bookableresourceid" to="resource" link-type="inner">` +
+      `<filter><condition attribute="userid" operator="eq-userid" /></filter>` +
+      `</link-entity>`;
+
+    // 1) The Today / Tomorrow / Complete window.
+    const windowFx =
       `<fetch><entity name="${BOOKING}">` +
       `<attribute name="bookableresourcebookingid" />` +
       `<filter type="and">` +
       `<condition attribute="starttime" operator="ge" value="${fxDate(windowStart)}" />` +
       `<condition attribute="starttime" operator="lt" value="${fxDate(endOfTomorrow)}" />` +
       `</filter>` +
-      `<link-entity name="bookableresource" from="bookableresourceid" to="resource" link-type="inner">` +
-      `<filter><condition attribute="userid" operator="eq-userid" /></filter>` +
-      `</link-entity>` +
+      resourceLink +
       `<order attribute="starttime" />` +
       `</entity></fetch>`;
-    const entities = await this.fetchXml(BOOKING, fx);
-    return entities.map((e) => e.bookableresourcebookingid as string).filter((id) => !!id);
+
+    // 2) Any ACTIVE (Traveling / In Progress) booking regardless of date. This makes a forgotten
+    //    open job always appear in the Active tab and lock the board — matching the server-side
+    //    "one running booking" rule — instead of letting a second job be started and rejected.
+    const activeVals = [...ACTIVE_FS_STATUSES].map((v) => `<value>${v}</value>`).join("");
+    const activeFx =
+      `<fetch><entity name="${BOOKING}">` +
+      `<attribute name="bookableresourcebookingid" />` +
+      resourceLink +
+      `<link-entity name="${BOOKINGSTATUS}" from="bookingstatusid" to="bookingstatus" link-type="inner">` +
+      `<filter><condition attribute="msdyn_fieldservicestatus" operator="in">${activeVals}</condition></filter>` +
+      `</link-entity>` +
+      `</entity></fetch>`;
+
+    const [windowEntities, activeEntities] = await Promise.all([
+      this.fetchXml(BOOKING, windowFx),
+      this.fetchXml(BOOKING, activeFx).catch((e) => {
+        // Best-effort: if the active query can't run (e.g. bookingstatus not in the offline
+        // profile), fall back to the date window rather than failing the whole load.
+        console.warn("[BookingCardList] active-booking query failed; using the date window only", e);
+        return [] as Entity[];
+      }),
+    ]);
+
+    const ids = new Set<string>();
+    for (const e of windowEntities) {
+      const id = e.bookableresourcebookingid as string;
+      if (id) ids.add(id);
+    }
+    for (const e of activeEntities) {
+      const id = e.bookableresourcebookingid as string;
+      if (id) ids.add(id);
+    }
+    return [...ids];
   }
 
   /**

@@ -110,7 +110,7 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
       } catch (e) {
         if (cancelled) return;
         console.error("[BookingCardList] Failed to load bookings", e);
-        setError(errMsg(e));
+        setError(`${t("ErrorPrefix", "Couldn't load bookings")}: ${errMsg(e)}`);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -118,7 +118,7 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
     return () => {
       cancelled = true;
     };
-  }, [reloadToken, service, loadDetailsFor]);
+  }, [reloadToken, service, loadDetailsFor, t]);
 
   // Load the All Jobs tab (all engineers, next N days) when enabled. Independent of the self-query
   // and the focus lock.
@@ -261,7 +261,8 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
         setReloadToken((n) => n + 1);
       } catch (e) {
         console.error("[BookingCardList] Failed to update status", e);
-        setError(errMsg(e));
+        // Surface the real reason (e.g. the one-running-booking rule) — not a "load" error.
+        setError(`${t("StatusUpdateFailed", "Couldn't update the booking")}: ${errMsg(e)}`);
       } finally {
         setStatusBusy((s) => ({ ...s, [id]: false }));
       }

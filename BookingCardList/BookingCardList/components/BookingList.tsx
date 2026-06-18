@@ -136,11 +136,7 @@ export const BookingList: React.FC<BookingListProps> = (props) => {
         ) : null}
 
         <div className={styles.scroll}>
-          {error ? (
-            <div className={styles.errorBanner}>
-              {`${t("ErrorPrefix", "Couldn't load bookings")}: ${error}`}
-            </div>
-          ) : null}
+          {error ? <div className={styles.errorBanner}>{error}</div> : null}
 
           {bookingIds.length === 0 && !loading && !error ? (
             <div className={styles.centered}>

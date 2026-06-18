@@ -132,5 +132,6 @@
   <data name="NoBookings" xml:space="preserve"><value>No bookings to show.</value></data>
   <data name="LoadMore" xml:space="preserve"><value>Load more</value></data>
   <data name="ErrorPrefix" xml:space="preserve"><value>Couldn't load bookings</value></data>
+  <data name="StatusUpdateFailed" xml:space="preserve"><value>Couldn't update the booking</value></data>
   <data name="NoStatusFound" xml:space="preserve"><value>No active Booking Status was found for this action in this environment.</value></data>
 </root>
