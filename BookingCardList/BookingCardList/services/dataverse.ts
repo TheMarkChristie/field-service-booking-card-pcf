@@ -36,9 +36,9 @@ function inCondition(attribute: string, values: string[]): string {
   return `<condition attribute="${attribute}" operator="in">${vals}</condition>`;
 }
 
-/** FetchXML datetime literal (UTC ISO 8601). */
+/** FetchXML datetime literal (UTC, no milliseconds — the offline parser is strict). */
 function fxDate(d: Date): string {
-  return d.toISOString();
+  return d.toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
 /**
@@ -74,19 +74,24 @@ interface BookingRow {
 /**
  * All Dataverse access for the control. Uses context.webAPI, which also resolves against the
  * Field Service mobile offline store when the app is offline (provided the tables are in the
- * offline profile). Every query uses FetchXML (not OData $filter): FetchXML is the documented
- * offline-safe path — lookup filters, "eq-userid", "in", and date operators all work offline,
- * whereas OData "_lookup_value" filters/selects are not supported in mobile offline. Works
- * identically online.
+ * offline profile). Every query uses FLAT FetchXML — no OData "_lookup_value" filters (unsupported
+ * in classic offline) and no link-entity joins (the new offline-first engine rejects inner/outer
+ * joins as "invalid FetchXML"). Filtering is done with flat "in" / date conditions on lookups
+ * (resolving related ids in separate flat queries first). Works offline-first, classic offline & online.
  */
 export class BookingDataService {
   private api: WebApi;
+  private userId: string;
   private dateFmt: Intl.DateTimeFormat;
   private timeFmt: Intl.DateTimeFormat;
   private statusIdCache = new Map<number, string | undefined>();
+  private myResourceIds?: string[];
+  private activeStatusIds?: string[];
 
   constructor(context: ComponentFramework.Context<unknown>) {
     this.api = context.webAPI;
+    // Signed-in user id (to resolve "my" resource via a flat userid filter). Strip any braces.
+    this.userId = (context.userSettings?.userId ?? "").replace(/[{}]/g, "");
     this.dateFmt = new Intl.DateTimeFormat(undefined, {
       weekday: "short",
       day: "2-digit",
@@ -370,15 +375,61 @@ export class BookingDataService {
     return map;
   }
 
+  /** Bookable resource id(s) for the signed-in user (cached). Flat query — no link-entity. */
+  private async getMyResourceIds(): Promise<string[]> {
+    if (this.myResourceIds) return this.myResourceIds;
+    if (!this.userId) {
+      this.myResourceIds = [];
+      return this.myResourceIds;
+    }
+    try {
+      const fx =
+        `<fetch><entity name="bookableresource">` +
+        `<attribute name="bookableresourceid" />` +
+        `<filter>${inCondition("userid", [this.userId])}</filter>` +
+        `</entity></fetch>`;
+      const ents = await this.fetchXml("bookableresource", fx);
+      this.myResourceIds = ents.map((e) => e.bookableresourceid as string).filter((id) => !!id);
+    } catch (e) {
+      console.warn("[BookingCardList] could not resolve the signed-in user's bookable resource", e);
+      this.myResourceIds = [];
+    }
+    return this.myResourceIds;
+  }
+
+  /** Booking Status record ids whose Field Service Status is active (Traveling/In Progress). */
+  private async getActiveStatusIds(): Promise<string[]> {
+    if (this.activeStatusIds) return this.activeStatusIds;
+    try {
+      const vals = [...ACTIVE_FS_STATUSES].map((v) => `<value>${v}</value>`).join("");
+      const fx =
+        `<fetch><entity name="${BOOKINGSTATUS}">` +
+        `<attribute name="bookingstatusid" />` +
+        `<filter><condition attribute="msdyn_fieldservicestatus" operator="in">${vals}</condition></filter>` +
+        `</entity></fetch>`;
+      const ents = await this.fetchXml(BOOKINGSTATUS, fx);
+      this.activeStatusIds = ents.map((e) => e.bookingstatusid as string).filter((id) => !!id);
+    } catch (e) {
+      console.warn("[BookingCardList] could not resolve active booking statuses", e);
+      this.activeStatusIds = [];
+    }
+    return this.activeStatusIds;
+  }
+
   /**
    * Booking ids for the signed-in user across the Today / Tomorrow / Complete window — built in
    * code, so no system views are needed. The caller buckets them with bucketOf(). The window
    * spans from `completeWindowDays` before today (recent finished jobs) to the end of tomorrow.
    *
-   * Uses FetchXML so it works in mobile offline: the signed-in user's resource is matched via
-   * `eq-userid` on a link to bookableresource (no unsupported "_resource_value" lookup filter).
+   * All FetchXML is FLAT (no link-entity joins): the new mobile **offline-first** engine rejects
+   * inner/outer joins ("Specified FetchXML is invalid"). So the user's resource id(s) and the
+   * active-status id(s) are resolved with their own flat queries, then bookings are filtered by
+   * `resource in (...)` and `bookingstatus in (...)`. Works offline-first, classic offline & online.
    */
   async getMyBookingIds(completeWindowDays: number): Promise<string[]> {
+    const resourceIds = await this.getMyResourceIds();
+    if (!resourceIds.length) return [];
+
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const windowStart = new Date(
@@ -388,56 +439,46 @@ export class BookingDataService {
     const endOfTomorrow = new Date(
       startOfToday.getFullYear(), startOfToday.getMonth(), startOfToday.getDate() + 2
     );
+    const resCond = inCondition("resource", resourceIds);
 
-    // The signed-in user's resource, matched via eq-userid (offline-safe, no _resource_value filter).
-    const resourceLink =
-      `<link-entity name="bookableresource" from="bookableresourceid" to="resource" link-type="inner">` +
-      `<filter><condition attribute="userid" operator="eq-userid" /></filter>` +
-      `</link-entity>`;
-
-    // 1) The Today / Tomorrow / Complete window.
+    // 1) The Today / Tomorrow / Complete window for this user's resource(s).
     const windowFx =
       `<fetch><entity name="${BOOKING}">` +
       `<attribute name="bookableresourcebookingid" />` +
-      `<filter type="and">` +
+      `<filter type="and">${resCond}` +
       `<condition attribute="starttime" operator="ge" value="${fxDate(windowStart)}" />` +
       `<condition attribute="starttime" operator="lt" value="${fxDate(endOfTomorrow)}" />` +
       `</filter>` +
-      resourceLink +
       `<order attribute="starttime" />` +
       `</entity></fetch>`;
 
-    // 2) Any ACTIVE (Traveling / In Progress) booking regardless of date. This makes a forgotten
-    //    open job always appear in the Active tab and lock the board — matching the server-side
-    //    "one running booking" rule — instead of letting a second job be started and rejected.
-    const activeVals = [...ACTIVE_FS_STATUSES].map((v) => `<value>${v}</value>`).join("");
-    const activeFx =
-      `<fetch><entity name="${BOOKING}">` +
-      `<attribute name="bookableresourcebookingid" />` +
-      resourceLink +
-      `<link-entity name="${BOOKINGSTATUS}" from="bookingstatusid" to="bookingstatus" link-type="inner">` +
-      `<filter><condition attribute="msdyn_fieldservicestatus" operator="in">${activeVals}</condition></filter>` +
-      `</link-entity>` +
-      `</entity></fetch>`;
+    const tasks: Promise<Entity[]>[] = [this.fetchXml(BOOKING, windowFx)];
 
-    const [windowEntities, activeEntities] = await Promise.all([
-      this.fetchXml(BOOKING, windowFx),
-      this.fetchXml(BOOKING, activeFx).catch((e) => {
-        // Best-effort: if the active query can't run (e.g. bookingstatus not in the offline
-        // profile), fall back to the date window rather than failing the whole load.
-        console.warn("[BookingCardList] active-booking query failed; using the date window only", e);
-        return [] as Entity[];
-      }),
-    ]);
-
-    const ids = new Set<string>();
-    for (const e of windowEntities) {
-      const id = e.bookableresourcebookingid as string;
-      if (id) ids.add(id);
+    // 2) Any ACTIVE (Traveling / In Progress) booking regardless of date, so a forgotten open job
+    //    always shows in the Active tab and locks the board — matching the server-side
+    //    one-running-booking rule. Best-effort: skip if statuses/profile don't resolve.
+    const activeStatusIds = await this.getActiveStatusIds();
+    if (activeStatusIds.length) {
+      const activeFx =
+        `<fetch><entity name="${BOOKING}">` +
+        `<attribute name="bookableresourcebookingid" />` +
+        `<filter type="and">${resCond}${inCondition("bookingstatus", activeStatusIds)}</filter>` +
+        `</entity></fetch>`;
+      tasks.push(
+        this.fetchXml(BOOKING, activeFx).catch((e) => {
+          console.warn("[BookingCardList] active-booking query failed; using the date window only", e);
+          return [] as Entity[];
+        })
+      );
     }
-    for (const e of activeEntities) {
-      const id = e.bookableresourcebookingid as string;
-      if (id) ids.add(id);
+
+    const results = await Promise.all(tasks);
+    const ids = new Set<string>();
+    for (const ents of results) {
+      for (const e of ents) {
+        const id = e.bookableresourcebookingid as string;
+        if (id) ids.add(id);
+      }
     }
     return [...ids];
   }
