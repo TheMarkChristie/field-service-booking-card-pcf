@@ -7,7 +7,7 @@ booking's status inline.
 
 - **Control:** `Proximo3.FieldService.BookingCardList`
 - **Publisher prefix:** `prx3`
-- **Current version:** `0.0.28`
+- **Current version:** `0.0.31`
 - **Platform libraries:** React 16.14 + Fluent UI v9 (provided by the platform — not bundled)
 
 ---
@@ -63,11 +63,14 @@ Behaviour:
   (via `context.fluentDesignLanguage.tokenTheme`).
 - **Responsive** — single column on a phone, multiple columns on a wide screen.
 - **Offline-capable** — all reads/writes go through `context.webAPI`, which resolves against
-  the mobile offline store when offline. Every query uses **FetchXML** (not OData `$filter`),
-  which is the documented offline-safe path: lookup filtering, `eq-userid`, `in`, and date
-  operators all work in mobile offline, whereas OData `_lookup_value` filters/selects do not.
-  The same code runs online and offline — no connectivity branching. Requires the
-  `bookableresource` and `bookableresourcebooking` tables in the offline profile.
+  the mobile offline store when offline. Every query is **flat FetchXML** (not OData `$filter`,
+  and **no `link-entity` joins**) so it's valid in all modes: classic offline rejects OData
+  `_lookup_value` filters/selects, and the new **offline-first** engine rejects inner/outer joins
+  ("Specified FetchXML is invalid"). Related ids (the user's resource, active statuses) are
+  resolved with their own flat queries, then bookings are filtered with `in` / date conditions.
+  Same code runs offline-first, classic offline and online. Requires `bookableresource`,
+  `bookableresourcebooking` and (for the always-show-active safety net) `bookingstatus` in the
+  offline profile.
 
 ---
 
@@ -87,7 +90,7 @@ Set these in the form/subgrid designer when you add the control (App designer �
 | **Priority Colours** | Text | Colour the card's top border and show a priority pill, by Work Order priority (`msdyn_priority`). Format: `High=#D13438;Medium=#F7A600;Low=#107C10`. Blank = off. |
 | **Header Badge Field** | Text | A Work Order / booking column shown as a badge in the card header (e.g. job type — domestic/commercial). Prefix `workorder.` for a WO field; lookups use `_logicalname_value`. Blank = off. |
 | **Maps Provider** | Choice | Which maps app the address opens: Google (default), Bing, or Apple. |
-| **Show All Jobs Tab** | Two Options | Add a final read-only tab listing **all engineers'** bookings for the next N days. Off by default. |
+| **Show All Engineers Tab** | Choice (No/Yes) | Add a final read-only tab listing **all engineers'** bookings for the next N days. Default `No`. |
 | **All Jobs Tab Name (default)** | Text | Label for the All Jobs tab. Default `All Jobs`. |
 | **All Jobs: Days Ahead** | Whole Number | How many days ahead (from today) the All Jobs tab covers. Default `7`. |
 
