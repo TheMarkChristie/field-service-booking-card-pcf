@@ -15,6 +15,10 @@ export interface BookingAppProps {
   theme?: Theme;
   defaultTabNames: string[];
   mapsProvider: MapsProvider;
+  /** Show a final read-only tab of all engineers' bookings for the next N days. */
+  allJobsEnabled: boolean;
+  allJobsName: string;
+  allJobsDays: number;
   extraFields: ExtraFieldSpec[];
   extrasTitle: string;
   /** Optional Work Order / booking field shown as a badge in the card header. */
@@ -27,8 +31,9 @@ export interface BookingAppProps {
 
 export const BookingApp: React.FC<BookingAppProps> = (props) => {
   const {
-    service, theme, defaultTabNames,
-    mapsProvider, extraFields, extrasTitle, headerField, priorityColours, openItem, openUrl, t,
+    service, theme, defaultTabNames, mapsProvider,
+    allJobsEnabled, allJobsName, allJobsDays,
+    extraFields, extrasTitle, headerField, priorityColours, openItem, openUrl, t,
   } = props;
 
   // Stabilise the custom-field list (index.ts rebuilds it each render) so detail loads
@@ -49,6 +54,14 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
   const [bookingIds, setBookingIds] = React.useState<string[]>([]);
   const [reloadToken, setReloadToken] = React.useState(0);
 
+  // All Jobs tab (optional, read-only): all engineers' bookings for the next N days. Kept in a
+  // separate map so other engineers' active jobs never affect this user's focus lock.
+  const [allJobsIds, setAllJobsIds] = React.useState<string[]>([]);
+  const [allJobsDetails, setAllJobsDetails] = React.useState<Record<string, BookingCardVM>>({});
+  const [allJobsLoading, setAllJobsLoading] = React.useState(false);
+  const allJobsDetailsRef = React.useRef(allJobsDetails);
+  allJobsDetailsRef.current = allJobsDetails;
+
   // The custom status option (label + booking status + work order sub-status) is read from the
   // Field Service Settings record, so the GUIDs live with the environment.
   const [effectiveCustomStatus, setEffectiveCustomStatus] = React.useState<CustomStatus | undefined>(undefined);
@@ -63,11 +76,14 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
     };
   }, [service]);
 
-  // Tab labels come from the manifest defaults. Tabs in order: Active, Today, Tomorrow, Complete.
-  const tabNames = React.useMemo(
-    () => [0, 1, 2, 3].map((i) => defaultTabNames[i] || `Tab ${i + 1}`),
-    [defaultTabNames]
-  );
+  // Tab labels from the manifest defaults: Active, Today, Tomorrow, Complete, then the optional
+  // All Jobs tab appended last when enabled.
+  const tabNames = React.useMemo(() => {
+    const base = [0, 1, 2, 3].map((i) => defaultTabNames[i] || `Tab ${i + 1}`);
+    if (allJobsEnabled) base.push(allJobsName);
+    return base;
+  }, [defaultTabNames, allJobsEnabled, allJobsName]);
+  const ALL_JOBS_INDEX = 4;
 
   const loadDetailsFor = React.useCallback(
     async (ids: string[]) => {
@@ -94,7 +110,7 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
       } catch (e) {
         if (cancelled) return;
         console.error("[BookingCardList] Failed to load bookings", e);
-        setError(errMsg(e));
+        setError(`${t("ErrorPrefix", "Couldn't load bookings")}: ${errMsg(e)}`);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -102,7 +118,39 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
     return () => {
       cancelled = true;
     };
-  }, [reloadToken, service, loadDetailsFor]);
+  }, [reloadToken, service, loadDetailsFor, t]);
+
+  // Load the All Jobs tab (all engineers, next N days) when enabled. Independent of the self-query
+  // and the focus lock.
+  React.useEffect(() => {
+    if (!allJobsEnabled) {
+      setAllJobsIds([]);
+      setAllJobsDetails({});
+      return;
+    }
+    let cancelled = false;
+    setAllJobsLoading(true);
+    void (async () => {
+      try {
+        const ids = await service.getAllBookingIds(allJobsDays);
+        if (cancelled) return;
+        setAllJobsIds(ids);
+        const vms = await service.getBookingDetails(ids, extraSpecs, headerSpec);
+        if (cancelled) return;
+        const map: Record<string, BookingCardVM> = {};
+        for (const vm of vms) map[vm.bookingId] = vm;
+        setAllJobsDetails(map);
+      } catch (e) {
+        if (cancelled) return;
+        console.error("[BookingCardList] Failed to load all-engineer bookings", e);
+      } finally {
+        if (!cancelled) setAllJobsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [allJobsEnabled, allJobsDays, service, extraSpecs, headerSpec]);
 
   // Bucket the loaded bookings into Active / Today / Tomorrow / Complete.
   const idsByTab = React.useMemo(() => {
@@ -131,10 +179,16 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
   const tabs = tabNames.map((name, i) => ({
     key: String(i),
     label: name,
-    count: idsByTab[i]?.length ?? 0,
+    count: i === ALL_JOBS_INDEX ? allJobsIds.length : idsByTab[i]?.length ?? 0,
   }));
 
-  const visibleIds = (idsByTab[activeIndex] ?? []).filter((id) => details[id]);
+  // The All Jobs tab is a separate, read-only data source (all engineers); the others are the
+  // signed-in user's own bookings, subject to the focus lock.
+  const isAllJobsTab = allJobsEnabled && activeIndex === ALL_JOBS_INDEX;
+  const activeDetails = isAllJobsTab ? allJobsDetails : details;
+  const visibleIds = (isAllJobsTab ? allJobsIds : idsByTab[activeIndex] ?? []).filter(
+    (id) => activeDetails[id]
+  );
 
   // Focus lock. While any booking is active (Traveling / In Progress), the technician must
   // finish it before opening OR updating any other job — including tomorrow's. Completed /
@@ -168,10 +222,10 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
 
   const onOpenMaps = React.useCallback(
     (id: string) => {
-      const vm = details[id];
+      const vm = detailsRef.current[id] ?? allJobsDetailsRef.current[id];
       if (vm) openUrl(buildMapsUrl(vm, mapsProvider));
     },
-    [details, mapsProvider, openUrl]
+    [mapsProvider, openUrl]
   );
 
   const doChangeStatus = React.useCallback(
@@ -207,7 +261,8 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
         setReloadToken((n) => n + 1);
       } catch (e) {
         console.error("[BookingCardList] Failed to update status", e);
-        setError(errMsg(e));
+        // Surface the real reason (e.g. the one-running-booking rule) — not a "load" error.
+        setError(`${t("StatusUpdateFailed", "Couldn't update the booking")}: ${errMsg(e)}`);
       } finally {
         setStatusBusy((s) => ({ ...s, [id]: false }));
       }
@@ -231,13 +286,14 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
       activeTab={String(activeIndex)}
       onTabSelect={onTabSelect}
       bookingIds={visibleIds}
-      details={details}
-      loading={loading}
+      details={activeDetails}
+      loading={isAllJobsTab ? allJobsLoading : loading}
       error={error}
+      readOnly={isAllJobsTab}
       statusBusy={statusBusy}
-      boardBusy={boardBusy}
-      statusLockReasons={statusLockReasons}
-      openLockedIds={openLockedIds}
+      boardBusy={isAllJobsTab ? false : boardBusy}
+      statusLockReasons={isAllJobsTab ? undefined : statusLockReasons}
+      openLockedIds={isAllJobsTab ? undefined : openLockedIds}
       openLockHint={openLockHint}
       extrasTitle={extrasTitle}
       priorityColours={priorityColours}

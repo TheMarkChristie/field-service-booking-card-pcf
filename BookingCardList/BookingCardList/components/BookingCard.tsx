@@ -218,6 +218,8 @@ export interface BookingCardProps {
   /** Lowercased priority-name → colour map (from the manifest). Empty = feature off. */
   priorityColours?: Record<string, string>;
   customStatusName?: string;
+  /** Read-only mode (All Jobs tab): show the engineer, hide the status control. */
+  readOnly?: boolean;
   onOpen: () => void;
   onOpenMaps: () => void;
   onChangeStatus: (action: StatusChoice) => void;
@@ -228,7 +230,7 @@ export const BookingCard: React.FC<BookingCardProps> = (props) => {
   const styles = useStyles();
   const {
     vm, statusBusy, boardBusy, statusLockReason, openDisabled, openLockHint, extrasTitle, priorityColours, customStatusName,
-    onOpen, onOpenMaps, onChangeStatus, t,
+    readOnly, onOpen, onOpenMaps, onChangeStatus, t,
   } = props;
   const statusDisabled = !!statusLockReason;
   // Another card is mid-commit: freeze this card so a second job can't be started in the gap.
@@ -301,6 +303,13 @@ export const BookingCard: React.FC<BookingCardProps> = (props) => {
       </div>
 
       <div className={styles.divider} />
+
+      {readOnly && vm.resourceName ? (
+        <div className={styles.section}>
+          <Text className={styles.label}>{t("Label_Engineer", "Engineer")}</Text>
+          <Text className={styles.value}>{vm.resourceName}</Text>
+        </div>
+      ) : null}
 
       {vm.serviceAccount ? (
         <div className={styles.section}>
@@ -382,7 +391,7 @@ export const BookingCard: React.FC<BookingCardProps> = (props) => {
         <Text className={styles.value}>
           {vm.bookingStatusName || t("StatusUnknown", "No status")}
         </Text>
-        {statusBusy ? (
+        {readOnly ? null : statusBusy ? (
           <Spinner size="tiny" labelPosition="after" label={t("Updating", "Updating…")} />
         ) : (
           <select

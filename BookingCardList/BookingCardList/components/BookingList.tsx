@@ -94,6 +94,8 @@ export interface BookingListProps {
   extrasTitle?: string;
   priorityColours?: Record<string, string>;
   customStatusName?: string;
+  /** Read-only mode (All Jobs tab): show the engineer, hide the status control. */
+  readOnly?: boolean;
   onOpen: (id: string) => void;
   onOpenMaps: (id: string) => void;
   onChangeStatus: (id: string, action: StatusChoice) => void;
@@ -134,11 +136,7 @@ export const BookingList: React.FC<BookingListProps> = (props) => {
         ) : null}
 
         <div className={styles.scroll}>
-          {error ? (
-            <div className={styles.errorBanner}>
-              {`${t("ErrorPrefix", "Couldn't load bookings")}: ${error}`}
-            </div>
-          ) : null}
+          {error ? <div className={styles.errorBanner}>{error}</div> : null}
 
           {bookingIds.length === 0 && !loading && !error ? (
             <div className={styles.centered}>
@@ -169,6 +167,7 @@ export const BookingList: React.FC<BookingListProps> = (props) => {
                     extrasTitle={props.extrasTitle}
                     priorityColours={props.priorityColours}
                     customStatusName={props.customStatusName}
+                    readOnly={props.readOnly}
                     onOpen={() => props.onOpen(id)}
                     onOpenMaps={() => props.onOpenMaps(id)}
                     onChangeStatus={(action) => props.onChangeStatus(id, action)}

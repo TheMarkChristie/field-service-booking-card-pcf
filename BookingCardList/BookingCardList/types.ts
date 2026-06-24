@@ -82,6 +82,8 @@ export interface BookingCardVM {
   travelText: string;
   bookingStatusName: string;
   fieldServiceStatus?: number;
+  /** Bookable resource (engineer) name — shown on the All Jobs tab. */
+  resourceName: string;
   /** Work Order priority name (from msdyn_priority), if any. */
   priorityName: string;
   products: ProductLine[];
