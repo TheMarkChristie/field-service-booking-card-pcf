@@ -132,11 +132,15 @@ export function parseExtraField(raw: string | null | undefined): ExtraFieldSpec 
   return { table: "booking", field: s };
 }
 
-/** Which built-in tab a booking belongs to. Active (Traveling/In Progress) wins, then Complete
- *  (Completed/Cancelled), otherwise by start date. null if none. */
-export function bucketOf(vm: BookingCardVM, today: Date, tomorrow: Date): BuiltinBucket | null {
+/** Which built-in tab a booking belongs to. Active (Traveling/In Progress, started on/after
+ *  activeFloor) wins, then Complete (Completed/Cancelled), otherwise by start date. An active job
+ *  that started before activeFloor is ignored (returns null) so a stale open job isn't shown and
+ *  doesn't block. null if none. */
+export function bucketOf(
+  vm: BookingCardVM, today: Date, tomorrow: Date, activeFloor: Date
+): BuiltinBucket | null {
   if (vm.fieldServiceStatus != null && ACTIVE_FS_STATUSES.has(vm.fieldServiceStatus)) {
-    return "active";
+    return vm.startDate && vm.startDate >= activeFloor ? "active" : null;
   }
   if (vm.fieldServiceStatus != null && TERMINAL_FS_STATUSES.has(vm.fieldServiceStatus)) {
     return "complete";

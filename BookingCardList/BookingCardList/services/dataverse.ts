@@ -426,7 +426,7 @@ export class BookingDataService {
    * active-status id(s) are resolved with their own flat queries, then bookings are filtered by
    * `resource in (...)` and `bookingstatus in (...)`. Works offline-first, classic offline & online.
    */
-  async getMyBookingIds(completeWindowDays: number): Promise<string[]> {
+  async getMyBookingIds(completeWindowDays: number, activeDays?: number): Promise<string[]> {
     const resourceIds = await this.getMyResourceIds();
     if (!resourceIds.length) return [];
 
@@ -439,6 +439,15 @@ export class BookingDataService {
     const endOfTomorrow = new Date(
       startOfToday.getFullYear(), startOfToday.getMonth(), startOfToday.getDate() + 2
     );
+    // Active jobs older than this are ignored (not loaded → not shown, don't block). When
+    // activeDays is unset there is no floor — all active jobs are loaded regardless of age.
+    const activeFloor =
+      activeDays == null
+        ? undefined
+        : new Date(
+            startOfToday.getFullYear(), startOfToday.getMonth(),
+            startOfToday.getDate() - Math.max(0, activeDays)
+          );
     const resCond = inCondition("resource", resourceIds);
 
     // 1) The Today / Tomorrow / Complete window for this user's resource(s).
@@ -454,15 +463,19 @@ export class BookingDataService {
 
     const tasks: Promise<Entity[]>[] = [this.fetchXml(BOOKING, windowFx)];
 
-    // 2) Any ACTIVE (Traveling / In Progress) booking regardless of date, so a forgotten open job
-    //    always shows in the Active tab and locks the board — matching the server-side
-    //    one-running-booking rule. Best-effort: skip if statuses/profile don't resolve.
+    // 2) ACTIVE (Traveling / In Progress) bookings started within the active window (activeDays),
+    //    so a recent forgotten open job shows in the Active tab and locks the board — matching the
+    //    server-side one-running-booking rule — but a stale one (older than activeDays) is left out
+    //    so it can't block forever. Best-effort: skip if statuses/profile don't resolve.
     const activeStatusIds = await this.getActiveStatusIds();
     if (activeStatusIds.length) {
+      const activeDateCond = activeFloor
+        ? `<condition attribute="starttime" operator="ge" value="${fxDate(activeFloor)}" />`
+        : "";
       const activeFx =
         `<fetch><entity name="${BOOKING}">` +
         `<attribute name="bookableresourcebookingid" />` +
-        `<filter type="and">${resCond}${inCondition("bookingstatus", activeStatusIds)}</filter>` +
+        `<filter type="and">${resCond}${inCondition("bookingstatus", activeStatusIds)}${activeDateCond}</filter>` +
         `</entity></fetch>`;
       tasks.push(
         this.fetchXml(BOOKING, activeFx).catch((e) => {

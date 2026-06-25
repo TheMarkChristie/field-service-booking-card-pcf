@@ -38,6 +38,7 @@ export class BookingCardList
         name(context.parameters.tab3Name?.raw, "Complete"),
       ],
       mapsProvider: this.mapsProvider(context),
+      activeDays: this.activeDays(context),
       allJobsEnabled: (context.parameters.allJobsTabEnabled?.raw ?? "0").toString() === "1",
       allJobsName: name(context.parameters.allJobsTabName?.raw, "All Jobs"),
       allJobsDays: this.allJobsDays(context),
@@ -77,6 +78,12 @@ export class BookingCardList
   private allJobsDays(context: ComponentFramework.Context<IInputs>): number {
     const n = context.parameters.allJobsDays?.raw;
     return typeof n === "number" && n > 0 ? Math.floor(n) : 7;
+  }
+
+  /** Active-tab lookback in days; undefined = no limit (show all active jobs regardless of age). */
+  private activeDays(context: ComponentFramework.Context<IInputs>): number | undefined {
+    const n = context.parameters.activeDays?.raw;
+    return typeof n === "number" && n > 0 ? Math.floor(n) : undefined;
   }
 
   private extraFields(context: ComponentFramework.Context<IInputs>): ExtraFieldSpec[] {
