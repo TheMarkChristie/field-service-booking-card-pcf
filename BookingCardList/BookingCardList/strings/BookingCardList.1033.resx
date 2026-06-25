@@ -67,6 +67,8 @@
 
   <data name="ActiveTabName_Display" xml:space="preserve"><value>Active Tab Name (default)</value></data>
   <data name="ActiveTabName_Desc" xml:space="preserve"><value>Label for the first tab, which shows the started (Traveling / In Progress) job. Defaults to Active.</value></data>
+  <data name="ActiveDays_Display" xml:space="preserve"><value>Active: Days Back</value></data>
+  <data name="ActiveDays_Desc" xml:space="preserve"><value>How many days back an active (Traveling / In Progress) booking still shows in the Active tab and blocks new jobs. Older active bookings are ignored. Leave blank to show all active bookings regardless of age.</value></data>
   <data name="Tab1Name_Display" xml:space="preserve"><value>Tab 1 Name (default)</value></data>
   <data name="Tab1Name_Desc" xml:space="preserve"><value>Fallback name for tab 1. Overridden by env var prx3_BookingTab1Name. Defaults to Today.</value></data>
   <data name="Tab2Name_Display" xml:space="preserve"><value>Tab 2 Name (default)</value></data>

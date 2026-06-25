@@ -1,5 +1,14 @@
 # BookingCardList — Release notes
 
+## v0.0.33 — 2026-06-24  ·  DevSync
+**Summary:** Configurable Active-tab lookback — active jobs older than N days are ignored so a stale open job can't block new work; leave blank for no limit.
+
+### Changed
+- New manifest property **Active: Days Back** (`activeDays`, whole number). An active (Traveling/In Progress) booking that started within this many days shows in the Active tab and locks the board; older active bookings are ignored — not shown and they don't block opening a new job. **Leave blank to show all active bookings regardless of age** (the previous behaviour).
+
+### Config / breaking
+- New optional property `activeDays`. Re-add the control on the form once so it appears in the designer.
+
 ## v0.0.31 — 2026-06-24  ·  DevSync
 **Summary:** Booking-card control for the FS mobile app — Active/Today/Tomorrow/Complete tabs, start-to-open focus lock, Field Service Settings custom status and an optional All-Engineers tab; data layer is now flat FetchXML so it loads in the new mobile offline-first engine as well as classic offline and the web app.
 
@@ -19,3 +28,4 @@
 ### Config / breaking
 - New manifest properties (since 0.0.27): **Show All Engineers Tab** (No/Yes), **All Jobs Tab Name**, **All Jobs: Days Ahead**. **Re-add the control on the form once** so the new properties surface in the designer.
 - The mobile **offline profile** must include `bookableresource`, `bookableresourcebooking` and `bookingstatus`.
+

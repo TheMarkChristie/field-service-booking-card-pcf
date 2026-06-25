@@ -15,6 +15,9 @@ export interface BookingAppProps {
   theme?: Theme;
   defaultTabNames: string[];
   mapsProvider: MapsProvider;
+  /** Days back an active job still counts (shown in Active + blocks); older active jobs ignored.
+   *  undefined = no limit (show all active jobs regardless of age). */
+  activeDays?: number;
   /** Show a final read-only tab of all engineers' bookings for the next N days. */
   allJobsEnabled: boolean;
   allJobsName: string;
@@ -31,10 +34,19 @@ export interface BookingAppProps {
 
 export const BookingApp: React.FC<BookingAppProps> = (props) => {
   const {
-    service, theme, defaultTabNames, mapsProvider,
+    service, theme, defaultTabNames, mapsProvider, activeDays,
     allJobsEnabled, allJobsName, allJobsDays,
     extraFields, extrasTitle, headerField, priorityColours, openItem, openUrl, t,
   } = props;
+
+  // Active jobs that started before this floor are ignored: not shown in Active and they don't
+  // block opening new jobs (so a forgotten open job can't lock the board forever). When activeDays
+  // is unset, the floor is the epoch — i.e. no limit, every active job counts.
+  const activeFloor = React.useMemo(() => {
+    if (activeDays == null) return new Date(0);
+    const n = new Date();
+    return new Date(n.getFullYear(), n.getMonth(), n.getDate() - Math.max(0, activeDays));
+  }, [activeDays]);
 
   // Stabilise the custom-field list (index.ts rebuilds it each render) so detail loads
   // depend on its contents, not its identity, and don't refetch on every render.
@@ -103,7 +115,7 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
     setError(undefined);
     void (async () => {
       try {
-        const ids = await service.getMyBookingIds(COMPLETE_WINDOW_DAYS);
+        const ids = await service.getMyBookingIds(COMPLETE_WINDOW_DAYS, activeDays);
         if (cancelled) return;
         setBookingIds(ids);
         await loadDetailsFor(ids);
@@ -118,7 +130,7 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
     return () => {
       cancelled = true;
     };
-  }, [reloadToken, service, loadDetailsFor, t]);
+  }, [reloadToken, service, loadDetailsFor, activeDays, t]);
 
   // Load the All Jobs tab (all engineers, next N days) when enabled. Independent of the self-query
   // and the focus lock.
@@ -161,12 +173,12 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
     for (const id of bookingIds) {
       const vm = details[id];
       if (!vm) continue;
-      const bucket = bucketOf(vm, today, tomorrow);
+      const bucket = bucketOf(vm, today, tomorrow, activeFloor);
       const pos = bucket ? BUILTIN_BUCKETS.indexOf(bucket) : -1;
       if (pos >= 0) byTab[pos].push(id);
     }
     return byTab;
-  }, [bookingIds, details]);
+  }, [bookingIds, details, activeFloor]);
 
   // On first load, land on the Active tab if a job is already started, otherwise Today.
   const tabInitialised = React.useRef(false);
@@ -195,7 +207,14 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
   // cancelled bookings are terminal: their status can never change again, but they can still
   // be opened to view the record.
   const allIds = Object.keys(details);
-  const isActive = (id: string) => ACTIVE_FS_STATUSES.has(details[id].fieldServiceStatus ?? -1);
+  // Active only counts if it started within the active window (activeDays) — a stale active job is
+  // ignored, so it neither blocks nor shows (matches the Active tab bucketing).
+  const isActive = (id: string) => {
+    const vm = details[id];
+    return (
+      ACTIVE_FS_STATUSES.has(vm.fieldServiceStatus ?? -1) && !!vm.startDate && vm.startDate >= activeFloor
+    );
+  };
   const isTerminal = (id: string) => TERMINAL_FS_STATUSES.has(details[id].fieldServiceStatus ?? -1);
   const anyActive = allIds.some(isActive);
 
