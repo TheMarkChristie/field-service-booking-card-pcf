@@ -65,35 +65,6 @@ export interface ProductLine {
   quantity: number | null;
 }
 
-/** A lookup option (Agreement / Asset) shown in a card dropdown. */
-export interface LookupOption {
-  id: string;
-  name: string;
-}
-
-/** Manifest-mapped Work Order columns for the Agreement & Asset card section.
- *  Each is a Work Order column logical name; the section is shown when configured. */
-export interface AgreementAssetConfig {
-  underAgreementField?: string;
-  agreementField?: string;
-  assetField?: string;
-  functionalLocationField?: string;
-}
-
-/** Per-card Agreement/Asset state, merged onto the VM when the section is configured. */
-export interface AgreementAssetVM {
-  serviceAccountId?: string;
-  functionalLocationId?: string;
-  functionalLocationName?: string;
-  underAgreement?: boolean;
-  agreementId?: string;
-  agreementName?: string;
-  agreementOptions?: LookupOption[];
-  assetId?: string;
-  assetName?: string;
-  assetOptions?: LookupOption[];
-}
-
 /** The fully-resolved view-model rendered on a single booking card. */
 export interface BookingCardVM {
   bookingId: string;
@@ -118,8 +89,6 @@ export interface BookingCardVM {
   products: ProductLine[];
   /** Values of the configured custom fields, in manifest order, blanks removed. */
   extras: string[];
-  /** Agreement & Asset state (present only when that section is configured + loaded). */
-  agreementAsset?: AgreementAssetVM;
 }
 
 /** Parse the priorityColours manifest string ("High=#D13438;Medium=#F7A600") into a
