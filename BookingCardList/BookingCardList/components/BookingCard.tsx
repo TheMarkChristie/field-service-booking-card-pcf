@@ -176,7 +176,108 @@ const useStyles = makeStyles({
       cursor: "default",
     },
   },
+  aaSection: {
+    display: "flex",
+    flexDirection: "column",
+    rowGap: "8px",
+  },
+  checkRow: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    columnGap: "8px",
+    cursor: "pointer",
+    fontSize: tokens.fontSizeBase300,
+    color: tokens.colorNeutralForeground1,
+  },
+  reqStar: {
+    color: tokens.colorPaletteRedForeground1,
+    marginLeft: "2px",
+  },
+  reqHint: {
+    fontSize: tokens.fontSizeBase200,
+    color: tokens.colorPaletteRedForeground1,
+  },
+  lookupSelect: {
+    width: "100%",
+    boxSizing: "border-box",
+    backgroundColor: tokens.colorNeutralBackground1,
+    color: tokens.colorNeutralForeground1,
+    borderTopWidth: "1px",
+    borderRightWidth: "1px",
+    borderBottomWidth: "1px",
+    borderLeftWidth: "1px",
+    borderTopStyle: "solid",
+    borderRightStyle: "solid",
+    borderBottomStyle: "solid",
+    borderLeftStyle: "solid",
+    borderTopColor: tokens.colorNeutralStroke1,
+    borderRightColor: tokens.colorNeutralStroke1,
+    borderBottomColor: tokens.colorNeutralStroke1,
+    borderLeftColor: tokens.colorNeutralStroke1,
+    borderRadius: "4px",
+    paddingTop: "6px",
+    paddingBottom: "6px",
+    paddingLeft: "8px",
+    paddingRight: "8px",
+    fontSize: tokens.fontSizeBase300,
+  },
+  addRow: {
+    display: "flex",
+    flexDirection: "row",
+    columnGap: "6px",
+  },
+  addInput: {
+    flexGrow: 1,
+    boxSizing: "border-box",
+    borderTopWidth: "1px",
+    borderRightWidth: "1px",
+    borderBottomWidth: "1px",
+    borderLeftWidth: "1px",
+    borderTopStyle: "solid",
+    borderRightStyle: "solid",
+    borderBottomStyle: "solid",
+    borderLeftStyle: "solid",
+    borderTopColor: tokens.colorNeutralStroke1,
+    borderRightColor: tokens.colorNeutralStroke1,
+    borderBottomColor: tokens.colorNeutralStroke1,
+    borderLeftColor: tokens.colorNeutralStroke1,
+    borderRadius: "4px",
+    paddingTop: "6px",
+    paddingBottom: "6px",
+    paddingLeft: "8px",
+    paddingRight: "8px",
+    fontSize: tokens.fontSizeBase300,
+  },
+  addBtn: {
+    flexShrink: 0,
+    backgroundColor: tokens.colorBrandBackground,
+    color: tokens.colorNeutralForegroundOnBrand,
+    borderTopStyle: "none",
+    borderRightStyle: "none",
+    borderBottomStyle: "none",
+    borderLeftStyle: "none",
+    borderRadius: "4px",
+    paddingLeft: "12px",
+    paddingRight: "12px",
+    fontSize: tokens.fontSizeBase300,
+    fontWeight: tokens.fontWeightSemibold,
+    cursor: "pointer",
+  },
 });
+
+/** Sentinel value for the "add new asset" option in the asset dropdown. */
+const ADD_ASSET = "__add__";
+
+export interface CardAgreementAsset {
+  showUnderAgreement: boolean;
+  showAgreement: boolean;
+  showAsset: boolean;
+  onSetUnderAgreement: (value: boolean) => void;
+  onSetAgreement: (agreementId: string) => void;
+  onSetAsset: (assetId: string) => void;
+  onAddAsset: (name: string) => void;
+}
 
 const actionLabel = (key: StatusActionKey, t: T): string => {
   switch (key) {
@@ -220,6 +321,8 @@ export interface BookingCardProps {
   customStatusName?: string;
   /** Read-only mode (All Jobs tab): show the engineer, hide the status control. */
   readOnly?: boolean;
+  /** Agreement & Asset section (undefined hides it). Data comes from vm.agreementAsset. */
+  agreementAsset?: CardAgreementAsset;
   onOpen: () => void;
   onOpenMaps: () => void;
   onChangeStatus: (action: StatusChoice) => void;
@@ -230,8 +333,10 @@ export const BookingCard: React.FC<BookingCardProps> = (props) => {
   const styles = useStyles();
   const {
     vm, statusBusy, boardBusy, statusLockReason, openDisabled, openLockHint, extrasTitle, priorityColours, customStatusName,
-    readOnly, onOpen, onOpenMaps, onChangeStatus, t,
+    readOnly, agreementAsset, onOpen, onOpenMaps, onChangeStatus, t,
   } = props;
+  const [addingAsset, setAddingAsset] = React.useState(false);
+  const [newAssetName, setNewAssetName] = React.useState("");
   const statusDisabled = !!statusLockReason;
   // Another card is mid-commit: freeze this card so a second job can't be started in the gap.
   const busyElsewhere = !!boardBusy && !statusBusy;
@@ -415,6 +520,101 @@ export const BookingCard: React.FC<BookingCardProps> = (props) => {
           </select>
         )}
       </div>
+
+      {agreementAsset && !readOnly ? (
+        <div className={styles.aaSection} onClick={stop}>
+          <div className={styles.divider} />
+
+          {agreementAsset.showUnderAgreement ? (
+            <label className={styles.checkRow}>
+              <input
+                type="checkbox"
+                checked={!!vm.agreementAsset?.underAgreement}
+                onChange={(e) => agreementAsset.onSetUnderAgreement(e.target.checked)}
+              />
+              {t("Label_UnderAgreement", "Under Agreement")}
+            </label>
+          ) : null}
+
+          {agreementAsset.showAgreement && vm.agreementAsset?.underAgreement ? (
+            <div className={styles.section}>
+              <Text className={styles.label}>{t("Label_Agreement", "Agreement")}</Text>
+              <select
+                className={styles.lookupSelect}
+                aria-label={t("Label_Agreement", "Agreement")}
+                value={vm.agreementAsset?.agreementId ?? ""}
+                onChange={(e) => agreementAsset.onSetAgreement(e.target.value)}
+              >
+                <option value="">{t("NonePlaceholder", "— none —")}</option>
+                {(vm.agreementAsset?.agreementOptions ?? []).map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+
+          {agreementAsset.showAsset ? (
+            <div className={styles.section}>
+              <Text className={styles.label}>
+                {t("Label_Asset", "Asset")}
+                <span className={styles.reqStar}>*</span>
+              </Text>
+              {addingAsset ? (
+                <div className={styles.addRow}>
+                  <input
+                    className={styles.addInput}
+                    aria-label={t("NewAssetName", "New asset name")}
+                    value={newAssetName}
+                    placeholder={t("NewAssetName", "New asset name")}
+                    onChange={(e) => setNewAssetName(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className={styles.addBtn}
+                    onClick={() => {
+                      const name = newAssetName.trim();
+                      if (name) {
+                        agreementAsset.onAddAsset(name);
+                        setNewAssetName("");
+                        setAddingAsset(false);
+                      }
+                    }}
+                  >
+                    {t("Add", "Add")}
+                  </button>
+                </div>
+              ) : (
+                <select
+                  className={styles.lookupSelect}
+                  aria-label={t("Label_Asset", "Asset")}
+                  value={vm.agreementAsset?.assetId ?? ""}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === ADD_ASSET) {
+                      setAddingAsset(true);
+                      return;
+                    }
+                    agreementAsset.onSetAsset(v);
+                  }}
+                >
+                  <option value="">{t("NonePlaceholder", "— none —")}</option>
+                  {(vm.agreementAsset?.assetOptions ?? []).map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name}
+                    </option>
+                  ))}
+                  <option value={ADD_ASSET}>{t("AddNewAsset", "+ Add new asset…")}</option>
+                </select>
+              )}
+              {!vm.agreementAsset?.assetId && !addingAsset ? (
+                <Text className={styles.reqHint}>{t("AssetRequired", "Asset is required")}</Text>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </Card>
   );
 };

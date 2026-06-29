@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest>
-  <control namespace="Proximo3.FieldService" constructor="BookingCardList" version="0.0.33"
+  <control namespace="Proximo3.FieldService" constructor="BookingCardList" version="0.0.34"
     display-name-key="BookingCardList_Display" description-key="BookingCardList_Desc"
     control-type="virtual">
 
@@ -79,6 +79,22 @@
       <value name="bing" display-name-key="MapsProvider_Bing">1</value>
       <value name="apple" display-name-key="MapsProvider_Apple">2</value>
     </property>
+
+    <!-- Agreement & Asset section at the bottom of each card. Map the Work Order columns the
+         selections write to (logical names). The section shows only when its columns are mapped.
+         - underAgreementField: Two-Options column for the "Under Agreement" tick.
+         - agreementField: lookup to msdyn_agreement; the dropdown lists the customer's agreements.
+         - assetField: lookup to msdyn_customerasset (required); the dropdown lists assets for the
+           Work Order's functional location, with an option to add a new one.
+         - functionalLocationField: the Work Order lookup the assets are filtered by. -->
+    <property name="underAgreementField" display-name-key="UnderAgreementField_Display" description-key="UnderAgreementField_Desc"
+      of-type="SingleLine.Text" usage="input" required="false" />
+    <property name="agreementField" display-name-key="AgreementField_Display" description-key="AgreementField_Desc"
+      of-type="SingleLine.Text" usage="input" required="false" default-value="msdyn_agreement" />
+    <property name="assetField" display-name-key="AssetField_Display" description-key="AssetField_Desc"
+      of-type="SingleLine.Text" usage="input" required="false" default-value="msdyn_primarycustomerasset" />
+    <property name="functionalLocationField" display-name-key="FunctionalLocationField_Display" description-key="FunctionalLocationField_Desc"
+      of-type="SingleLine.Text" usage="input" required="false" default-value="msdyn_functionallocation" />
 
     <resources>
       <code path="index.ts" order="1" />

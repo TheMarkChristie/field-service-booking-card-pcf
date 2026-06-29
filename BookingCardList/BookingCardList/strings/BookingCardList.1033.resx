@@ -100,6 +100,24 @@
   <data name="PriorityColours_Display" xml:space="preserve"><value>Priority Colours</value></data>
   <data name="PriorityColours_Desc" xml:space="preserve"><value>Colour the card top border and show a priority pill, by Work Order priority. Format: "Name=#hex" pairs separated by ";" e.g. High=#D13438;Medium=#F7A600;Low=#107C10. Blank = off.</value></data>
 
+  <data name="UnderAgreementField_Display" xml:space="preserve"><value>Under Agreement: Work Order column</value></data>
+  <data name="UnderAgreementField_Desc" xml:space="preserve"><value>Logical name of a Two-Options Work Order column for the "Under Agreement" tick. Blank = hide the tick.</value></data>
+  <data name="AgreementField_Display" xml:space="preserve"><value>Agreement: Work Order column</value></data>
+  <data name="AgreementField_Desc" xml:space="preserve"><value>Logical name of the Work Order lookup column to the Agreement (msdyn_agreement). The dropdown lists the customer's agreements. Default msdyn_agreement.</value></data>
+  <data name="AssetField_Display" xml:space="preserve"><value>Asset: Work Order column</value></data>
+  <data name="AssetField_Desc" xml:space="preserve"><value>Logical name of the Work Order lookup column to the Customer Asset (required). The dropdown lists assets for the functional location, with an option to add. Default msdyn_primarycustomerasset.</value></data>
+  <data name="FunctionalLocationField_Display" xml:space="preserve"><value>Functional Location: Work Order column</value></data>
+  <data name="FunctionalLocationField_Desc" xml:space="preserve"><value>Logical name of the Work Order lookup column to the Functional Location; the Asset dropdown is filtered to assets at this location. Default msdyn_functionallocation.</value></data>
+
+  <data name="Label_Agreement" xml:space="preserve"><value>Agreement</value></data>
+  <data name="Label_Asset" xml:space="preserve"><value>Asset</value></data>
+  <data name="Label_UnderAgreement" xml:space="preserve"><value>Under Agreement</value></data>
+  <data name="AssetRequired" xml:space="preserve"><value>Asset is required</value></data>
+  <data name="AddNewAsset" xml:space="preserve"><value>+ Add new asset…</value></data>
+  <data name="NewAssetName" xml:space="preserve"><value>New asset name</value></data>
+  <data name="Add" xml:space="preserve"><value>Add</value></data>
+  <data name="NonePlaceholder" xml:space="preserve"><value>— none —</value></data>
+
   <data name="MapsProvider_Display" xml:space="preserve"><value>Maps Provider</value></data>
   <data name="MapsProvider_Desc" xml:space="preserve"><value>Which maps app to open when the address is tapped.</value></data>
   <data name="MapsProvider_Google" xml:space="preserve"><value>Google Maps</value></data>
