@@ -1,15 +1,10 @@
 # BookingCardList — Release notes
 
-## v0.0.34 — 2026-06-24  ·  DevSync
-**Summary:** Agreement & Asset section at the bottom of each card — Under Agreement tick → customer-filtered Agreement, functional-location-filtered Asset (required, with quick-create), writing to manifest-mapped Work Order columns.
+## v0.0.35 — 2026-06-24  ·  DevSync
+**Summary:** Removed the Agreement & Asset section — that feature belongs on the Domestic Work Order PCF, not BookingCardList. Back to the 0.0.33 feature set.
 
 ### Changed
-- New per-card section (shown when its columns are mapped): **Under Agreement** tick → **Agreement** dropdown (the customer's agreements), and **Asset** dropdown (required) filtered to the Work Order's functional location, with **+ Add new asset** quick-create. Selections write back to the mapped Work Order columns immediately. Hidden on the read-only All Engineers tab.
-- Lookups use flat FetchXML (offline-safe); option lists are batch-loaded across visible cards.
-
-### Config / breaking
-- New manifest properties (Work Order column logical names): **Under Agreement: Work Order column** (`underAgreementField`), **Agreement: Work Order column** (`agreementField`, default `msdyn_agreement`), **Asset: Work Order column** (`assetField`, default `msdyn_primarycustomerasset`), **Functional Location: Work Order column** (`functionalLocationField`, default `msdyn_functionallocation`).
-- Filters: agreements by `msdyn_serviceaccount`, assets by `msdyn_functionallocation` (standard FS). Add `msdyn_agreement` / `msdyn_customerasset` / `msdyn_functionallocation` to the offline profile for offline use. Re-add the control on the form to surface the new properties.
+- Reverted the per-card Agreement/Asset section and its four manifest properties (added in 0.0.34).
 
 ## v0.0.33 — 2026-06-24  ·  DevSync
 **Summary:** Configurable Active-tab lookback — active jobs older than N days are ignored so a stale open job can't block new work; leave blank for no limit.

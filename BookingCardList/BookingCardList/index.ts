@@ -2,7 +2,7 @@ import * as React from "react";
 import { IInputs, IOutputs } from "./generated/ManifestTypes";
 import { BookingApp, BookingAppProps } from "./components/BookingApp";
 import { BookingDataService } from "./services/dataverse";
-import { MapsProvider, ExtraFieldSpec, AgreementAssetConfig, parseExtraField, parsePriorityColours } from "./types";
+import { MapsProvider, ExtraFieldSpec, parseExtraField, parsePriorityColours } from "./types";
 
 export class BookingCardList
   implements ComponentFramework.ReactControl<IInputs, IOutputs>
@@ -46,7 +46,6 @@ export class BookingCardList
       extrasTitle: (context.parameters.extraFieldsTitle?.raw ?? "").trim(),
       headerField: parseExtraField(context.parameters.headerField?.raw) ?? undefined,
       priorityColours: parsePriorityColours(context.parameters.priorityColours?.raw),
-      agreementAsset: this.agreementAssetConfig(context),
       openItem: (id) => this.openItem(context, id),
       openUrl: (url) => context.navigation.openUrl(url),
       t: (key, fallback) => this.localize(context, key, fallback),
@@ -85,19 +84,6 @@ export class BookingCardList
   private activeDays(context: ComponentFramework.Context<IInputs>): number | undefined {
     const n = context.parameters.activeDays?.raw;
     return typeof n === "number" && n > 0 ? Math.floor(n) : undefined;
-  }
-
-  private agreementAssetConfig(context: ComponentFramework.Context<IInputs>): AgreementAssetConfig {
-    const v = (s: string | null | undefined): string | undefined => {
-      const t = (s ?? "").trim();
-      return t.length ? t : undefined;
-    };
-    return {
-      underAgreementField: v(context.parameters.underAgreementField?.raw),
-      agreementField: v(context.parameters.agreementField?.raw),
-      assetField: v(context.parameters.assetField?.raw),
-      functionalLocationField: v(context.parameters.functionalLocationField?.raw),
-    };
   }
 
   private extraFields(context: ComponentFramework.Context<IInputs>): ExtraFieldSpec[] {
