@@ -1,4 +1,7 @@
-import { BookingCardVM, ProductLine, ExtraFieldSpec, CustomStatus, ACTIVE_FS_STATUSES } from "../types";
+import {
+  BookingCardVM, ProductLine, ExtraFieldSpec, CustomStatus, ACTIVE_FS_STATUSES,
+  LookupOption, AgreementAssetConfig, AgreementAssetVM,
+} from "../types";
 
 type WebApi = ComponentFramework.WebApi;
 type Entity = ComponentFramework.WebApi.Entity;
@@ -531,6 +534,147 @@ export class BookingDataService {
     await this.api.updateRecord(WORKORDER, workOrderId, {
       "msdyn_substatus@odata.bind": `/msdyn_workordersubstatuses(${subStatusId})`,
     });
+  }
+
+  // ── Agreement & Asset section ────────────────────────────────────────────────────────
+  // Reads the manifest-mapped Work Order columns and batch-loads the dropdown options.
+  // All flat FetchXML (offline-safe). Returns a map keyed by Work Order id.
+  async getAgreementAssetData(
+    workOrderIds: string[],
+    config: AgreementAssetConfig
+  ): Promise<Map<string, AgreementAssetVM>> {
+    const map = new Map<string, AgreementAssetVM>();
+    if (!workOrderIds.length) return map;
+    const flField = config.functionalLocationField ?? "msdyn_functionallocation";
+    const { agreementField, assetField, underAgreementField: underField } = config;
+
+    const attrs = [...new Set(["msdyn_workorderid", "msdyn_serviceaccount", flField,
+      agreementField, assetField, underField].filter((a): a is string => !!a))];
+
+    const accountIds = new Set<string>();
+    const flIds = new Set<string>();
+    try {
+      for (const ids of chunk(workOrderIds, FETCH_CHUNK)) {
+        const fx =
+          `<fetch><entity name="${WORKORDER}">` +
+          attrs.map((a) => `<attribute name="${a}" />`).join("") +
+          `<filter>${inCondition("msdyn_workorderid", ids)}</filter>` +
+          `</entity></fetch>`;
+        const ents = await this.fetchXml(WORKORDER, fx);
+        for (const w of ents) {
+          const woId = w.msdyn_workorderid as string;
+          const accountId = (w._msdyn_serviceaccount_value as string) || undefined;
+          const flId = (w[`_${flField}_value`] as string) || undefined;
+          if (accountId) accountIds.add(accountId);
+          if (flId) flIds.add(flId);
+          const aa: AgreementAssetVM = {
+            serviceAccountId: accountId,
+            functionalLocationId: flId,
+            functionalLocationName: (w[`_${flField}_value${FV}`] as string) || "",
+          };
+          if (underField) aa.underAgreement = w[underField] === true;
+          if (agreementField) {
+            aa.agreementId = (w[`_${agreementField}_value`] as string) || undefined;
+            aa.agreementName = (w[`_${agreementField}_value${FV}`] as string) || "";
+          }
+          if (assetField) {
+            aa.assetId = (w[`_${assetField}_value`] as string) || undefined;
+            aa.assetName = (w[`_${assetField}_value${FV}`] as string) || "";
+          }
+          map.set(woId, aa);
+        }
+      }
+    } catch (e) {
+      console.warn("[BookingCardList] could not read Agreement/Asset Work Order columns", e);
+      return map;
+    }
+
+    const [agreementsByAccount, assetsByFl] = await Promise.all([
+      agreementField ? this.getAgreementsByAccount([...accountIds]) : Promise.resolve(new Map<string, LookupOption[]>()),
+      assetField ? this.getAssetsByFunctionalLocation([...flIds]) : Promise.resolve(new Map<string, LookupOption[]>()),
+    ]);
+    for (const aa of map.values()) {
+      if (agreementField && aa.serviceAccountId) aa.agreementOptions = agreementsByAccount.get(aa.serviceAccountId) ?? [];
+      if (assetField && aa.functionalLocationId) aa.assetOptions = assetsByFl.get(aa.functionalLocationId) ?? [];
+    }
+    return map;
+  }
+
+  /** Active agreements grouped by service account (customer). */
+  private async getAgreementsByAccount(accountIds: string[]): Promise<Map<string, LookupOption[]>> {
+    const map = new Map<string, LookupOption[]>();
+    if (!accountIds.length) return map;
+    try {
+      for (const ids of chunk(accountIds, FETCH_CHUNK)) {
+        const fx =
+          `<fetch><entity name="msdyn_agreement">` +
+          `<attribute name="msdyn_agreementid" /><attribute name="msdyn_name" /><attribute name="msdyn_serviceaccount" />` +
+          `<filter type="and">${inCondition("msdyn_serviceaccount", ids)}` +
+          `<condition attribute="statecode" operator="eq" value="0" /></filter>` +
+          `<order attribute="msdyn_name" /></entity></fetch>`;
+        for (const e of await this.fetchXml("msdyn_agreement", fx)) {
+          const acc = e._msdyn_serviceaccount_value as string;
+          if (!acc) continue;
+          const list = map.get(acc) ?? [];
+          list.push({ id: e.msdyn_agreementid as string, name: (e.msdyn_name as string) || "(agreement)" });
+          map.set(acc, list);
+        }
+      }
+    } catch (e) {
+      console.warn("[BookingCardList] could not load agreements", e);
+    }
+    return map;
+  }
+
+  /** Active customer assets grouped by functional location. */
+  private async getAssetsByFunctionalLocation(flIds: string[]): Promise<Map<string, LookupOption[]>> {
+    const map = new Map<string, LookupOption[]>();
+    if (!flIds.length) return map;
+    try {
+      for (const ids of chunk(flIds, FETCH_CHUNK)) {
+        const fx =
+          `<fetch><entity name="msdyn_customerasset">` +
+          `<attribute name="msdyn_customerassetid" /><attribute name="msdyn_name" /><attribute name="msdyn_functionallocation" />` +
+          `<filter type="and">${inCondition("msdyn_functionallocation", ids)}` +
+          `<condition attribute="statecode" operator="eq" value="0" /></filter>` +
+          `<order attribute="msdyn_name" /></entity></fetch>`;
+        for (const e of await this.fetchXml("msdyn_customerasset", fx)) {
+          const fl = e._msdyn_functionallocation_value as string;
+          if (!fl) continue;
+          const list = map.get(fl) ?? [];
+          list.push({ id: e.msdyn_customerassetid as string, name: (e.msdyn_name as string) || "(asset)" });
+          map.set(fl, list);
+        }
+      }
+    } catch (e) {
+      console.warn("[BookingCardList] could not load assets", e);
+    }
+    return map;
+  }
+
+  /** Set/clear a Work Order lookup column (targetId null clears it). */
+  async setWorkOrderLookup(
+    workOrderId: string, field: string, targetEntitySet: string, targetId: string | null
+  ): Promise<void> {
+    await this.api.updateRecord(WORKORDER, workOrderId, {
+      [`${field}@odata.bind`]: targetId ? `/${targetEntitySet}(${targetId})` : null,
+    });
+  }
+
+  /** Set a Work Order Two-Options column. */
+  async setWorkOrderBool(workOrderId: string, field: string, value: boolean): Promise<void> {
+    await this.api.updateRecord(WORKORDER, workOrderId, { [field]: value });
+  }
+
+  /** Create a Customer Asset at a functional location (quick-create), returning the new option. */
+  async createAsset(name: string, functionalLocationId: string, accountId?: string): Promise<LookupOption> {
+    const body: Record<string, unknown> = {
+      msdyn_name: name,
+      "msdyn_functionallocation@odata.bind": `/msdyn_functionallocations(${functionalLocationId})`,
+    };
+    if (accountId) body["msdyn_account@odata.bind"] = `/accounts(${accountId})`;
+    const res = await this.api.createRecord("msdyn_customerasset", body);
+    return { id: res.id, name };
   }
 
   /**

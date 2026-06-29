@@ -2,7 +2,7 @@ import * as React from "react";
 import { Theme } from "@fluentui/react-components";
 import { BookingList } from "./BookingList";
 import {
-  BookingCardVM, CustomStatus, MapsProvider, StatusChoice, ExtraFieldSpec,
+  BookingCardVM, CustomStatus, MapsProvider, StatusChoice, ExtraFieldSpec, AgreementAssetConfig,
   ACTIVE_FS_STATUSES, TERMINAL_FS_STATUSES, BUILTIN_BUCKETS, STATUS_ACTIONS, COMPLETE_WINDOW_DAYS, bucketOf,
 } from "../types";
 import { BookingDataService } from "../services/dataverse";
@@ -27,6 +27,8 @@ export interface BookingAppProps {
   /** Optional Work Order / booking field shown as a badge in the card header. */
   headerField?: ExtraFieldSpec;
   priorityColours: Record<string, string>;
+  /** Manifest-mapped Work Order columns for the Agreement & Asset card section. */
+  agreementAsset: AgreementAssetConfig;
   openItem: (id: string) => void;
   openUrl: (url: string) => void;
   t: T;
@@ -36,8 +38,13 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
   const {
     service, theme, defaultTabNames, mapsProvider, activeDays,
     allJobsEnabled, allJobsName, allJobsDays,
-    extraFields, extrasTitle, headerField, priorityColours, openItem, openUrl, t,
+    extraFields, extrasTitle, headerField, priorityColours, agreementAsset, openItem, openUrl, t,
   } = props;
+
+  // Stable Agreement/Asset config (index.ts rebuilds it each render).
+  const aaKey = `${agreementAsset.underAgreementField}|${agreementAsset.agreementField}|${agreementAsset.assetField}|${agreementAsset.functionalLocationField}`;
+  const aaConfig = React.useMemo(() => agreementAsset, [aaKey]);
+  const aaEnabled = [aaConfig.assetField, aaConfig.agreementField, aaConfig.underAgreementField].some(Boolean);
 
   // Active jobs that started before this floor are ignored: not shown in Active and they don't
   // block opening new jobs (so a forgotten open job can't lock the board forever). When activeDays
@@ -102,9 +109,16 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
       const vms = await service.getBookingDetails(ids, extraSpecs, headerSpec);
       const next: Record<string, BookingCardVM> = {};
       for (const vm of vms) next[vm.bookingId] = vm;
+      if (aaEnabled) {
+        const woIds = [...new Set(vms.map((v) => v.workOrderId).filter((x): x is string => !!x))];
+        const aaMap = await service.getAgreementAssetData(woIds, aaConfig);
+        for (const vm of Object.values(next)) {
+          if (vm.workOrderId) vm.agreementAsset = aaMap.get(vm.workOrderId);
+        }
+      }
       setDetails(next);
     },
-    [service, extraSpecs, headerSpec]
+    [service, extraSpecs, headerSpec, aaEnabled, aaConfig]
   );
 
   // Load the signed-in user's bookings for the Today / Tomorrow / Complete window directly
@@ -273,7 +287,8 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
         }
 
         const [vm] = await service.getBookingDetails([id], extraSpecs, headerSpec);
-        if (vm) setDetails((d) => ({ ...d, [id]: vm }));
+        // Keep the loaded Agreement/Asset state on the card through the status change.
+        if (vm) setDetails((d) => ({ ...d, [id]: { ...vm, agreementAsset: d[id]?.agreementAsset } }));
 
         // Re-run the self-query so the booking lands in the right tab (e.g. a completed job
         // moving to the Complete tab) and counts refresh.
@@ -294,6 +309,97 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
       void doChangeStatus(id, action);
     },
     [doChangeStatus]
+  );
+
+  // ── Agreement & Asset handlers (write to the mapped Work Order columns) ───────────────
+  const aaError = React.useCallback(
+    (e: unknown) => setError(`${t("StatusUpdateFailed", "Couldn't update the booking")}: ${errMsg(e)}`),
+    [t]
+  );
+  const patchAgreementAsset = React.useCallback(
+    (id: string, patch: Partial<BookingCardVM["agreementAsset"]>) =>
+      setDetails((d) => ({
+        ...d,
+        [id]: { ...d[id], agreementAsset: { ...(d[id].agreementAsset ?? {}), ...patch } },
+      })),
+    []
+  );
+
+  const onSetUnderAgreement = React.useCallback(
+    (id: string, value: boolean) => {
+      const vm = detailsRef.current[id];
+      const field = aaConfig.underAgreementField;
+      if (!vm?.workOrderId || !field) return;
+      const woId = vm.workOrderId;
+      patchAgreementAsset(id, { underAgreement: value });
+      void service.setWorkOrderBool(woId, field, value).catch(aaError);
+    },
+    [service, aaConfig, patchAgreementAsset, aaError]
+  );
+
+  const onSetAgreement = React.useCallback(
+    (id: string, agreementId: string) => {
+      const vm = detailsRef.current[id];
+      const field = aaConfig.agreementField;
+      if (!vm?.workOrderId || !field) return;
+      const woId = vm.workOrderId;
+      const name = vm.agreementAsset?.agreementOptions?.find((o) => o.id === agreementId)?.name ?? "";
+      patchAgreementAsset(id, { agreementId: agreementId || undefined, agreementName: name });
+      void service
+        .setWorkOrderLookup(woId, field, "msdyn_agreements", agreementId || null)
+        .catch(aaError);
+    },
+    [service, aaConfig, patchAgreementAsset, aaError]
+  );
+
+  const onSetAsset = React.useCallback(
+    (id: string, assetId: string) => {
+      const vm = detailsRef.current[id];
+      const field = aaConfig.assetField;
+      if (!vm?.workOrderId || !field) return;
+      const woId = vm.workOrderId;
+      const name = vm.agreementAsset?.assetOptions?.find((o) => o.id === assetId)?.name ?? "";
+      patchAgreementAsset(id, { assetId: assetId || undefined, assetName: name });
+      void service
+        .setWorkOrderLookup(woId, field, "msdyn_customerassets", assetId || null)
+        .catch(aaError);
+    },
+    [service, aaConfig, patchAgreementAsset, aaError]
+  );
+
+  const onAddAsset = React.useCallback(
+    (id: string, name: string) => {
+      const vm = detailsRef.current[id];
+      const field = aaConfig.assetField;
+      const flId = vm?.agreementAsset?.functionalLocationId;
+      if (!vm?.workOrderId || !field || !flId || !name.trim()) return;
+      const woId = vm.workOrderId;
+      const accountId = vm.agreementAsset?.serviceAccountId;
+      void (async () => {
+        try {
+          const opt = await service.createAsset(name.trim(), flId, accountId);
+          await service.setWorkOrderLookup(woId, field, "msdyn_customerassets", opt.id);
+          setDetails((d) => {
+            const cur = d[id].agreementAsset ?? {};
+            return {
+              ...d,
+              [id]: {
+                ...d[id],
+                agreementAsset: {
+                  ...cur,
+                  assetId: opt.id,
+                  assetName: opt.name,
+                  assetOptions: [...(cur.assetOptions ?? []), opt],
+                },
+              },
+            };
+          });
+        } catch (e) {
+          aaError(e);
+        }
+      })();
+    },
+    [service, aaConfig, aaError]
   );
 
   const onTabSelect = React.useCallback((key: string) => setActiveIndex(Number(key)), []);
@@ -317,6 +423,19 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
       extrasTitle={extrasTitle}
       priorityColours={priorityColours}
       customStatusName={effectiveCustomStatus?.name}
+      agreementAsset={
+        isAllJobsTab || !aaEnabled
+          ? undefined
+          : {
+              showUnderAgreement: !!aaConfig.underAgreementField,
+              showAgreement: !!aaConfig.agreementField,
+              showAsset: !!aaConfig.assetField,
+              onSetUnderAgreement,
+              onSetAgreement,
+              onSetAsset,
+              onAddAsset,
+            }
+      }
       onOpen={onOpen}
       onOpenMaps={onOpenMaps}
       onChangeStatus={onChangeStatus}

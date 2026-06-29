@@ -76,6 +76,17 @@ export interface TabDef {
   count: number;
 }
 
+/** Agreement & Asset section config + id-keyed handlers (undefined hides the section). */
+export interface AgreementAssetUI {
+  showUnderAgreement: boolean;
+  showAgreement: boolean;
+  showAsset: boolean;
+  onSetUnderAgreement: (id: string, value: boolean) => void;
+  onSetAgreement: (id: string, agreementId: string) => void;
+  onSetAsset: (id: string, assetId: string) => void;
+  onAddAsset: (id: string, name: string) => void;
+}
+
 export interface BookingListProps {
   theme?: Theme;
   tabs: TabDef[];
@@ -96,6 +107,8 @@ export interface BookingListProps {
   customStatusName?: string;
   /** Read-only mode (All Jobs tab): show the engineer, hide the status control. */
   readOnly?: boolean;
+  /** Agreement & Asset section (undefined hides it, e.g. on the read-only All Jobs tab). */
+  agreementAsset?: AgreementAssetUI;
   onOpen: (id: string) => void;
   onOpenMaps: (id: string) => void;
   onChangeStatus: (id: string, action: StatusChoice) => void;
@@ -155,6 +168,7 @@ export const BookingList: React.FC<BookingListProps> = (props) => {
               {bookingIds.map((id) => {
                 const vm = details[id];
                 if (!vm) return null;
+                const aa = props.agreementAsset;
                 return (
                   <BookingCard
                     key={id}
@@ -168,6 +182,19 @@ export const BookingList: React.FC<BookingListProps> = (props) => {
                     priorityColours={props.priorityColours}
                     customStatusName={props.customStatusName}
                     readOnly={props.readOnly}
+                    agreementAsset={
+                      aa
+                        ? {
+                            showUnderAgreement: aa.showUnderAgreement,
+                            showAgreement: aa.showAgreement,
+                            showAsset: aa.showAsset,
+                            onSetUnderAgreement: (v) => aa.onSetUnderAgreement(id, v),
+                            onSetAgreement: (a) => aa.onSetAgreement(id, a),
+                            onSetAsset: (a) => aa.onSetAsset(id, a),
+                            onAddAsset: (n) => aa.onAddAsset(id, n),
+                          }
+                        : undefined
+                    }
                     onOpen={() => props.onOpen(id)}
                     onOpenMaps={() => props.onOpenMaps(id)}
                     onChangeStatus={(action) => props.onChangeStatus(id, action)}
