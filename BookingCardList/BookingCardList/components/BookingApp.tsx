@@ -15,9 +15,6 @@ export interface BookingAppProps {
   theme?: Theme;
   defaultTabNames: string[];
   mapsProvider: MapsProvider;
-  /** Days back an active job still counts (shown in Active + blocks); older active jobs ignored.
-   *  undefined = no limit (show all active jobs regardless of age). */
-  activeDays?: number;
   /** Show a final read-only tab of all engineers' bookings for the next N days. */
   allJobsEnabled: boolean;
   allJobsName: string;
@@ -34,19 +31,10 @@ export interface BookingAppProps {
 
 export const BookingApp: React.FC<BookingAppProps> = (props) => {
   const {
-    service, theme, defaultTabNames, mapsProvider, activeDays,
+    service, theme, defaultTabNames, mapsProvider,
     allJobsEnabled, allJobsName, allJobsDays,
     extraFields, extrasTitle, headerField, priorityColours, openItem, openUrl, t,
   } = props;
-
-  // Active jobs that started before this floor are ignored: not shown in Active and they don't
-  // block opening new jobs (so a forgotten open job can't lock the board forever). When activeDays
-  // is unset, the floor is the epoch — i.e. no limit, every active job counts.
-  const activeFloor = React.useMemo(() => {
-    if (activeDays == null) return new Date(0);
-    const n = new Date();
-    return new Date(n.getFullYear(), n.getMonth(), n.getDate() - Math.max(0, activeDays));
-  }, [activeDays]);
 
   // Stabilise the custom-field list (index.ts rebuilds it each render) so detail loads
   // depend on its contents, not its identity, and don't refetch on every render.
@@ -74,19 +62,31 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
   const allJobsDetailsRef = React.useRef(allJobsDetails);
   allJobsDetailsRef.current = allJobsDetails;
 
-  // The custom status option (label + booking status + work order sub-status) is read from the
-  // Field Service Settings record, so the GUIDs live with the environment.
+  // Custom status + active-booking window both come from the Field Service Settings record, so they
+  // live with the environment and match the EnsureSingleRunningBooking plugin's window.
   const [effectiveCustomStatus, setEffectiveCustomStatus] = React.useState<CustomStatus | undefined>(undefined);
+  const [settingsActiveDays, setSettingsActiveDays] = React.useState<number | undefined>(undefined);
   React.useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const s = await service.getCustomStatusSettings();
-      if (!cancelled && s) setEffectiveCustomStatus(s);
+      const s = await service.getFieldServiceSettings();
+      if (cancelled) return;
+      setEffectiveCustomStatus(s.customStatus);
+      setSettingsActiveDays(s.activeDays);
     })();
     return () => {
       cancelled = true;
     };
   }, [service]);
+
+  // Active jobs that started before this floor are ignored: not shown in Active and they don't block
+  // opening new jobs (a forgotten open job can't lock the board forever). No setting = epoch (no
+  // limit, every active job counts) — matching the plugin's "blank/0 = no limit".
+  const activeFloor = React.useMemo(() => {
+    if (settingsActiveDays == null) return new Date(0);
+    const n = new Date();
+    return new Date(n.getFullYear(), n.getMonth(), n.getDate() - Math.max(0, settingsActiveDays));
+  }, [settingsActiveDays]);
 
   // Tab labels from the manifest defaults: Active, Today, Tomorrow, Complete, then the optional
   // All Jobs tab appended last when enabled.
@@ -115,7 +115,7 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
     setError(undefined);
     void (async () => {
       try {
-        const ids = await service.getMyBookingIds(COMPLETE_WINDOW_DAYS, activeDays);
+        const ids = await service.getMyBookingIds(COMPLETE_WINDOW_DAYS, settingsActiveDays);
         if (cancelled) return;
         setBookingIds(ids);
         await loadDetailsFor(ids);
@@ -130,7 +130,7 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
     return () => {
       cancelled = true;
     };
-  }, [reloadToken, service, loadDetailsFor, activeDays, t]);
+  }, [reloadToken, service, loadDetailsFor, settingsActiveDays, t]);
 
   // Load the All Jobs tab (all engineers, next N days) when enabled. Independent of the self-query
   // and the focus lock.
