@@ -1,5 +1,14 @@
 # BookingCardList — Release notes
 
+## v0.0.37 — 2026-07-10  ·  DevSync
+**Summary:** Offline hardening. A column missing from the mobile offline profile no longer breaks the whole card, and the control now names exactly which tables/columns are missing offline.
+
+### Changed
+- Enrichment queries (work order, products, booking status, settings, core detail) degrade gracefully: a table/column absent from the offline profile is skipped instead of throwing "Specified FetchXML is invalid" and failing the entire load.
+- Work-order attributes are tried in tiers (drops geo, then incident/priority) so one missing field can't lose the whole work order.
+- New precise error/notice: names the missing **table (columns: …)** — red banner on hard failure, amber notice when the card still loads.
+- Added docs/OFFLINE-PROFILE.md listing every required table + column for the mobile offline profile.
+
 ## v0.0.36 — 2026-07-10  ·  DevSync
 **Summary:** The active-booking window now comes from Field Service Settings (`prx3_activebookingdays`), read by BOTH the control and the EnsureSingleRunningBooking plugin so they always agree. Manifest `activeDays` removed.
 
