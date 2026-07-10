@@ -539,29 +539,39 @@ export class BookingDataService {
    * environment (like the plugin's paused sub-status) instead of being baked into the
    * control config per environment. Returns undefined when not configured.
    */
-  async getCustomStatusSettings(): Promise<CustomStatus | undefined> {
+  async getFieldServiceSettings(): Promise<{ customStatus?: CustomStatus; activeDays?: number }> {
     try {
       const fx =
         `<fetch top="1"><entity name="msdyn_fieldservicesetting">` +
         `<attribute name="prx3_customstatuslabel" />` +
         `<attribute name="prx3_custombookingstatus" />` +
         `<attribute name="prx3_customworkordersubstatus" />` +
+        `<attribute name="prx3_activebookingdays" />` +
         `</entity></fetch>`;
       const entities = await this.fetchXml("msdyn_fieldservicesetting", fx);
-      if (!entities.length) return undefined;
+      if (!entities.length) return {};
       const s = entities[0];
+
+      // Active-booking window (days back an open booking still shows in Active + blocks).
+      const ad = s.prx3_activebookingdays as number | null;
+      const activeDays = typeof ad === "number" && ad > 0 ? ad : undefined;
+
+      // Custom "Start Job" status (only when a booking status is configured).
       const bookingStatusId = (s._prx3_custombookingstatus_value as string) || undefined;
-      if (!bookingStatusId) return undefined; // feature not configured in this environment
-      const label = (s.prx3_customstatuslabel as string) || "";
-      const statusName = (s[`_prx3_custombookingstatus_value${FV}`] as string) || "";
-      return {
-        name: label || statusName || "Custom",
-        bookingStatusId,
-        workOrderSubStatusId: (s._prx3_customworkordersubstatus_value as string) || undefined,
-      };
+      let customStatus: CustomStatus | undefined;
+      if (bookingStatusId) {
+        const label = (s.prx3_customstatuslabel as string) || "";
+        const statusName = (s[`_prx3_custombookingstatus_value${FV}`] as string) || "";
+        customStatus = {
+          name: label || statusName || "Custom",
+          bookingStatusId,
+          workOrderSubStatusId: (s._prx3_customworkordersubstatus_value as string) || undefined,
+        };
+      }
+      return { customStatus, activeDays };
     } catch (e) {
-      console.warn("[BookingCardList] could not read custom status from Field Service Settings", e);
-      return undefined;
+      console.warn("[BookingCardList] could not read Field Service Settings", e);
+      return {};
     }
   }
 

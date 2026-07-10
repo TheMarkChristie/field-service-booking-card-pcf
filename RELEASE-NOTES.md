@@ -1,5 +1,13 @@
 # BookingCardList — Release notes
 
+## v0.0.36 — 2026-07-10  ·  DevSync
+**Summary:** The active-booking window now comes from Field Service Settings (`prx3_activebookingdays`), read by BOTH the control and the EnsureSingleRunningBooking plugin so they always agree. Manifest `activeDays` removed.
+
+### Changed
+- Removed the manifest **Active: Days Back** property. The window is now read from **Field Service Settings** `prx3_activebookingdays` (Whole Number). Blank/0 = no limit.
+- `getCustomStatusSettings` → `getFieldServiceSettings`, returning `{ customStatus, activeDays }`.
+- Paired with a plugin change: `EnsureSingleRunningBooking` reads `prx3_activebookingdays` and only blocks on open bookings started within that window, so control and plugin match.
+
 ## v0.0.35 — 2026-06-24  ·  DevSync
 **Summary:** Removed the Agreement & Asset section — that feature belongs on the Domestic Work Order PCF, not BookingCardList. Back to the 0.0.33 feature set.
 

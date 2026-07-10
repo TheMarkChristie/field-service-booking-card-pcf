@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest>
-  <control namespace="Proximo3.FieldService" constructor="BookingCardList" version="0.0.35"
+  <control namespace="Proximo3.FieldService" constructor="BookingCardList" version="0.0.36"
     display-name-key="BookingCardList_Display" description-key="BookingCardList_Desc"
     control-type="virtual">
 
@@ -15,11 +15,10 @@
     <!-- Tab labels. Tabs in order: Active (started jobs), then tab1/2/3. -->
     <property name="activeTabName" display-name-key="ActiveTabName_Display" description-key="ActiveTabName_Desc"
       of-type="SingleLine.Text" usage="input" required="false" default-value="Active" />
-    <!-- How many days back an active (Traveling/In Progress) job still counts. Active jobs older
-         than this are ignored: not shown in the Active tab and they don't block opening new jobs.
-         Leave blank to show ALL active jobs regardless of age (no limit). -->
-    <property name="activeDays" display-name-key="ActiveDays_Display" description-key="ActiveDays_Desc"
-      of-type="Whole.None" usage="input" required="false" />
+    <!-- The active-booking window (days back an open booking still shows in Active + blocks a new
+         job) is read from the Field Service Settings record (msdyn_fieldservicesetting.
+         prx3_activebookingdays), so the control and the EnsureSingleRunningBooking plugin agree.
+         Blank/0 = no limit. -->
     <property name="tab1Name" display-name-key="Tab1Name_Display" description-key="Tab1Name_Desc"
       of-type="SingleLine.Text" usage="input" required="false" default-value="Today" />
     <property name="tab2Name" display-name-key="Tab2Name_Display" description-key="Tab2Name_Desc"
