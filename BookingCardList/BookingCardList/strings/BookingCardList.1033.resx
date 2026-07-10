@@ -134,4 +134,8 @@
   <data name="ErrorPrefix" xml:space="preserve"><value>Couldn't load bookings</value></data>
   <data name="StatusUpdateFailed" xml:space="preserve"><value>Couldn't update the booking</value></data>
   <data name="NoStatusFound" xml:space="preserve"><value>No active Booking Status was found for this action in this environment.</value></data>
+
+  <data name="OfflineDataError" xml:space="preserve"><value>Some booking data isn't available offline on this device. Reconnect to load the latest, or ask your administrator to add the required tables/columns to this app's mobile offline profile.</value></data>
+  <data name="OfflineMissingPrefix" xml:space="preserve"><value>Missing offline:</value></data>
+  <data name="OfflineGapNotice" xml:space="preserve"><value>Loaded, but some data isn't in this app's mobile offline profile, so it's missing offline:</value></data>
 </root>

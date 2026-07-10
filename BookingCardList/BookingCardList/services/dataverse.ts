@@ -41,6 +41,27 @@ function fxDate(d: Date): string {
   return d.toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
+/** Friendly labels for the tables the control reads, for the offline-profile gap message. */
+const TABLE_LABELS: Record<string, string> = {
+  bookableresourcebooking: "Bookings",
+  bookableresource: "Bookable Resources",
+  bookingstatus: "Booking Statuses",
+  msdyn_workorder: "Work Orders",
+  msdyn_workorderproduct: "Work Order Products",
+  msdyn_fieldservicesetting: "Field Service Settings",
+};
+
+/**
+ * Does this error look like the mobile offline-first engine rejecting a query because the table or
+ * a requested column isn't in the app's offline profile? Those surface as "Specified FetchXML is
+ * invalid" (or an explicit "not available offline"), as opposed to a genuine network/permission
+ * error — so we only attribute a gap to the offline profile when the signature matches.
+ */
+function isOfflineProfileError(e: unknown): boolean {
+  const msg = (e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e)) || "";
+  return /fetchxml is invalid|not (currently )?available offline|isn't available offline|is not available offline/i.test(msg);
+}
+
 /**
  * For a custom-field name, the FetchXML attribute to request. Lookups entered as the OData
  * "_logicalname_value" form map back to the lookup's logical name for FetchXML; the result
@@ -87,6 +108,10 @@ export class BookingDataService {
   private statusIdCache = new Map<number, string | undefined>();
   private myResourceIds?: string[];
   private activeStatusIds?: string[];
+  // Offline-profile gaps discovered during the current load: entity logical name -> the specific
+  // columns that couldn't be read (empty set = the whole table isn't queryable offline). Surfaced
+  // to the user so an admin knows exactly what to add to the app's mobile offline profile.
+  private offlineGaps = new Map<string, Set<string>>();
 
   constructor(context: ComponentFramework.Context<unknown>) {
     this.api = context.webAPI;
@@ -126,18 +151,21 @@ export class BookingDataService {
     const statusIds = new Set<string>();
 
     for (const ids of chunk(bookingIds, FETCH_CHUNK)) {
-      const fx =
+      const build = (attrs: string[]): string =>
         `<fetch><entity name="${BOOKING}">` +
-        `<attribute name="bookableresourcebookingid" />` +
-        `<attribute name="starttime" />` +
-        `<attribute name="endtime" />` +
-        `<attribute name="msdyn_estimatedtravelduration" />` +
-        `<attribute name="msdyn_workorder" />` +
-        `<attribute name="bookingstatus" />` +
-        `<attribute name="resource" />` +
+        attrs.map((a) => `<attribute name="${a}" />`).join("") +
         `<filter>${inCondition("bookableresourcebookingid", ids)}</filter>` +
         `</entity></fetch>`;
-      const entities = await this.fetchXml(BOOKING, fx);
+      // Drop the optional travel-duration field first — if it isn't in the offline profile the
+      // whole booking-detail query would otherwise be rejected and no cards would load at all.
+      const entities = await this.fetchTiered(BOOKING, build, [
+        [
+          "bookableresourcebookingid", "starttime", "endtime", "msdyn_estimatedtravelduration",
+          "msdyn_workorder", "bookingstatus", "resource",
+        ],
+        ["bookableresourcebookingid", "starttime", "endtime", "msdyn_workorder", "bookingstatus", "resource"],
+        ["bookableresourcebookingid", "starttime", "msdyn_workorder", "bookingstatus", "resource"],
+      ]);
       for (const e of entities) {
         const workOrderId = (e._msdyn_workorder_value as string) || undefined;
         const statusId = (e._bookingstatus_value as string) || undefined;
@@ -289,21 +317,26 @@ export class BookingDataService {
     const map = new Map<string, WorkOrderInfo>();
     if (workOrderIds.length === 0) return map;
     for (const ids of chunk(workOrderIds, FETCH_CHUNK)) {
-      const fx =
+      const build = (attrs: string[]): string =>
         `<fetch><entity name="${WORKORDER}">` +
-        `<attribute name="msdyn_workorderid" />` +
-        `<attribute name="msdyn_name" />` +
-        `<attribute name="msdyn_serviceaccount" />` +
-        `<attribute name="msdyn_primaryincidenttype" />` +
-        `<attribute name="msdyn_priority" />` +
-        `<attribute name="msdyn_address1" />` +
-        `<attribute name="msdyn_city" />` +
-        `<attribute name="msdyn_postalcode" />` +
-        `<attribute name="msdyn_latitude" />` +
-        `<attribute name="msdyn_longitude" />` +
+        attrs.map((a) => `<attribute name="${a}" />`).join("") +
         `<filter>${inCondition("msdyn_workorderid", ids)}</filter>` +
         `</entity></fetch>`;
-      const entities = await this.fetchXml(WORKORDER, fx);
+      // Widest first; drop the fields most likely to be absent from an offline profile (geo, then
+      // incident type / priority) so a single missing field can't lose the whole work order.
+      const entities = await this.fetchTiered(WORKORDER, build, [
+        [
+          "msdyn_workorderid", "msdyn_name", "msdyn_serviceaccount", "msdyn_primaryincidenttype",
+          "msdyn_priority", "msdyn_address1", "msdyn_city", "msdyn_postalcode",
+          "msdyn_latitude", "msdyn_longitude",
+        ],
+        [
+          "msdyn_workorderid", "msdyn_name", "msdyn_serviceaccount", "msdyn_primaryincidenttype",
+          "msdyn_priority", "msdyn_address1", "msdyn_city", "msdyn_postalcode",
+        ],
+        ["msdyn_workorderid", "msdyn_name", "msdyn_serviceaccount", "msdyn_address1", "msdyn_city", "msdyn_postalcode"],
+        ["msdyn_workorderid", "msdyn_name"],
+      ]);
       for (const w of entities) {
         const lat = w.msdyn_latitude as number | null;
         const lng = w.msdyn_longitude as number | null;
@@ -338,7 +371,16 @@ export class BookingDataService {
         `<filter type="and">${inCondition("msdyn_workorder", ids)}` +
         `<condition attribute="statecode" operator="eq" value="0" /></filter>` +
         `</entity></fetch>`;
-      const entities = await this.fetchXml(WORKORDERPRODUCT, fx);
+      let entities: Entity[];
+      try {
+        entities = await this.fetchXml(WORKORDERPRODUCT, fx);
+      } catch (e) {
+        // Products are an enrichment: if the table/attribute isn't in the offline profile the
+        // card still loads without a product list, instead of failing the whole load.
+        console.warn("[BookingCardList] work order products skipped (offline profile?)", e);
+        if (isOfflineProfileError(e)) this.noteOfflineGap(WORKORDERPRODUCT);
+        continue;
+      }
       for (const e of entities) {
         const woId = e._msdyn_workorder_value as string;
         if (!woId) continue;
@@ -366,7 +408,16 @@ export class BookingDataService {
         `<attribute name="msdyn_fieldservicestatus" />` +
         `<filter>${inCondition("bookingstatusid", ids)}</filter>` +
         `</entity></fetch>`;
-      const entities = await this.fetchXml(BOOKINGSTATUS, fx);
+      let entities: Entity[];
+      try {
+        entities = await this.fetchXml(BOOKINGSTATUS, fx);
+      } catch (e) {
+        // The Field Service Status mapping is an enrichment (drives the status pill colour); if
+        // Booking Status isn't in the offline profile the card still loads without it.
+        console.warn("[BookingCardList] booking-status FS mapping skipped (offline profile?)", e);
+        if (isOfflineProfileError(e)) this.noteOfflineGap(BOOKINGSTATUS);
+        continue;
+      }
       for (const s of entities) {
         const fs = s.msdyn_fieldservicestatus as number | null;
         if (fs != null) map.set(s.bookingstatusid as string, fs);
@@ -392,6 +443,7 @@ export class BookingDataService {
       this.myResourceIds = ents.map((e) => e.bookableresourceid as string).filter((id) => !!id);
     } catch (e) {
       console.warn("[BookingCardList] could not resolve the signed-in user's bookable resource", e);
+      if (isOfflineProfileError(e)) this.noteOfflineGap("bookableresource");
       this.myResourceIds = [];
     }
     return this.myResourceIds;
@@ -411,6 +463,7 @@ export class BookingDataService {
       this.activeStatusIds = ents.map((e) => e.bookingstatusid as string).filter((id) => !!id);
     } catch (e) {
       console.warn("[BookingCardList] could not resolve active booking statuses", e);
+      if (isOfflineProfileError(e)) this.noteOfflineGap(BOOKINGSTATUS);
       this.activeStatusIds = [];
     }
     return this.activeStatusIds;
@@ -461,7 +514,14 @@ export class BookingDataService {
       `<order attribute="starttime" />` +
       `</entity></fetch>`;
 
-    const tasks: Promise<Entity[]>[] = [this.fetchXml(BOOKING, windowFx)];
+    const tasks: Promise<Entity[]>[] = [
+      this.fetchXml(BOOKING, windowFx).catch((e) => {
+        // The Bookings table (and its start-time column) must be in the offline profile — this is
+        // the core query. Record the gap so the error can name it, then let the load fail.
+        if (isOfflineProfileError(e)) this.noteOfflineGap(BOOKING);
+        throw e;
+      }),
+    ];
 
     // 2) ACTIVE (Traveling / In Progress) bookings started within the active window (activeDays),
     //    so a recent forgotten open job shows in the Active tab and locks the board — matching the
@@ -480,6 +540,7 @@ export class BookingDataService {
       tasks.push(
         this.fetchXml(BOOKING, activeFx).catch((e) => {
           console.warn("[BookingCardList] active-booking query failed; using the date window only", e);
+          if (isOfflineProfileError(e)) this.noteOfflineGap(BOOKING);
           return [] as Entity[];
         })
       );
@@ -571,6 +632,7 @@ export class BookingDataService {
       return { customStatus, activeDays };
     } catch (e) {
       console.warn("[BookingCardList] could not read Field Service Settings", e);
+      if (isOfflineProfileError(e)) this.noteOfflineGap("msdyn_fieldservicesetting");
       return {};
     }
   }
@@ -600,6 +662,70 @@ export class BookingDataService {
       "?fetchXml=" + encodeURIComponent(fetchXml)
     );
     return res.entities;
+  }
+
+  /**
+   * Run an ENRICHMENT fetch whose attribute list may include a field that isn't in the mobile
+   * offline profile. Offline-first rejects the whole query ("Specified FetchXML is invalid") when
+   * ANY requested attribute (or the entity) isn't synced — which would otherwise take the entire
+   * card load down. So we try each attribute set in turn (widest first) and return the first that
+   * succeeds; if all fail we return [] and the card simply renders without that enrichment, rather
+   * than failing to load. `build` receives an attribute list and returns the full FetchXML.
+   */
+  private async fetchTiered(
+    entity: string,
+    build: (attrs: string[]) => string,
+    attrSets: string[][]
+  ): Promise<Entity[]> {
+    for (let i = 0; i < attrSets.length; i++) {
+      try {
+        const res = await this.fetchXml(entity, build(attrSets[i]));
+        // Succeeded only after dropping fields → those dropped from the widest set are the columns
+        // missing from the offline profile. Record them so the user can be told precisely.
+        if (i > 0) {
+          const dropped = new Set(attrSets[0]);
+          for (const a of attrSets[i]) dropped.delete(a);
+          this.noteOfflineGap(entity, [...dropped]);
+        }
+        return res;
+      } catch (e) {
+        const last = i === attrSets.length - 1;
+        if (last) {
+          if (isOfflineProfileError(e)) this.noteOfflineGap(entity);
+          console.warn(`[BookingCardList] ${entity} query failed on every attribute set (offline profile?)`, e);
+        } else {
+          console.warn(`[BookingCardList] ${entity} query failed; retrying with fewer fields`, e);
+        }
+      }
+    }
+    return [];
+  }
+
+  /** Record an offline-profile gap for the current load (whole table, or specific columns). */
+  private noteOfflineGap(entity: string, columns?: string[]): void {
+    const set = this.offlineGaps.get(entity) ?? new Set<string>();
+    if (columns) columns.forEach((c) => set.add(c));
+    this.offlineGaps.set(entity, set);
+  }
+
+  /** Reset the offline-profile gap tracking at the start of a load. */
+  clearOfflineGaps(): void {
+    this.offlineGaps.clear();
+  }
+
+  /**
+   * Human-readable summary of the tables/columns that couldn't be read from the offline profile in
+   * the last load (e.g. "Work Orders (Est. Travel, Latitude); Booking Statuses"), or "" if none.
+   * The control shows this so an admin knows exactly what to add to the mobile offline profile.
+   */
+  getOfflineGapSummary(): string {
+    if (this.offlineGaps.size === 0) return "";
+    const parts: string[] = [];
+    for (const [entity, cols] of this.offlineGaps) {
+      const label = TABLE_LABELS[entity] ?? entity;
+      parts.push(cols.size ? `${label} (columns: ${[...cols].join(", ")})` : label);
+    }
+    return parts.join("; ");
   }
 
   private parseDate(iso: string): Date | undefined {

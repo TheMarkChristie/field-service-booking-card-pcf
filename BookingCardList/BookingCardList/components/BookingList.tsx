@@ -45,6 +45,19 @@ const useStyles = makeStyles({
     borderRadius: "4px",
     fontSize: tokens.fontSizeBase300,
   },
+  noticeBanner: {
+    marginTop: "12px",
+    marginLeft: "12px",
+    marginRight: "12px",
+    paddingTop: "10px",
+    paddingBottom: "10px",
+    paddingLeft: "10px",
+    paddingRight: "10px",
+    backgroundColor: tokens.colorStatusWarningBackground1,
+    color: tokens.colorStatusWarningForeground1,
+    borderRadius: "4px",
+    fontSize: tokens.fontSizeBase300,
+  },
   list: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
@@ -85,6 +98,8 @@ export interface BookingListProps {
   details: Record<string, BookingCardVM>;
   loading: boolean;
   error?: string;
+  /** Non-blocking informational notice (e.g. offline-profile gaps): amber, shown above the list. */
+  notice?: string;
   statusBusy: Record<string, boolean>;
   /** True while any card's status change is in flight (freezes the rest). */
   boardBusy?: boolean;
@@ -137,6 +152,7 @@ export const BookingList: React.FC<BookingListProps> = (props) => {
 
         <div className={styles.scroll}>
           {error ? <div className={styles.errorBanner}>{error}</div> : null}
+          {props.notice ? <div className={styles.noticeBanner}>{props.notice}</div> : null}
 
           {bookingIds.length === 0 && !loading && !error ? (
             <div className={styles.centered}>

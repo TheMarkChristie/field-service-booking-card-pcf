@@ -49,6 +49,7 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
 
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | undefined>();
+  const [notice, setNotice] = React.useState<string | undefined>();
   const [statusBusy, setStatusBusy] = React.useState<Record<string, boolean>>({});
   const [activeIndex, setActiveIndex] = React.useState(0);
   const [bookingIds, setBookingIds] = React.useState<string[]>([]);
@@ -107,22 +108,52 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
     [service, extraSpecs, headerSpec]
   );
 
+  // Turn a raw load failure into something a field engineer can act on. The offline-first engine
+  // reports "Specified FetchXML is invalid" when a required table/column isn't in the app's mobile
+  // offline profile — a config issue, not a real query error — so we say so plainly instead.
+  const loadErrorText = React.useCallback(
+    (e: unknown): string => {
+      const raw = errMsg(e);
+      const gaps = service.getOfflineGapSummary();
+      if (gaps || /fetchxml is invalid|not (currently )?available offline|isn't available offline|offline/i.test(raw)) {
+        const base = t(
+          "OfflineDataError",
+          "Some booking data isn't available offline on this device. Reconnect to load the latest, or ask your administrator to add the required tables/columns to this app's mobile offline profile."
+        );
+        return gaps ? `${base} ${t("OfflineMissingPrefix", "Missing offline:")} ${gaps}.` : base;
+      }
+      return `${t("ErrorPrefix", "Couldn't load bookings")}: ${raw}`;
+    },
+    [t, service]
+  );
+
   // Load the signed-in user's bookings for the Today / Tomorrow / Complete window directly
   // (no system views required), then load detail for them. bucketOf() sorts the rest.
   React.useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(undefined);
+    setNotice(undefined);
+    service.clearOfflineGaps();
     void (async () => {
       try {
         const ids = await service.getMyBookingIds(COMPLETE_WINDOW_DAYS, settingsActiveDays);
         if (cancelled) return;
         setBookingIds(ids);
         await loadDetailsFor(ids);
+        if (cancelled) return;
+        // The cards loaded, but some tables/columns may not have been in the offline profile —
+        // tell the user (and admin) exactly what to add so offline shows everything.
+        const gaps = service.getOfflineGapSummary();
+        setNotice(
+          gaps
+            ? `${t("OfflineGapNotice", "Loaded, but some data isn't in this app's mobile offline profile, so it's missing offline:")} ${gaps}.`
+            : undefined
+        );
       } catch (e) {
         if (cancelled) return;
         console.error("[BookingCardList] Failed to load bookings", e);
-        setError(`${t("ErrorPrefix", "Couldn't load bookings")}: ${errMsg(e)}`);
+        setError(loadErrorText(e));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -130,7 +161,7 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
     return () => {
       cancelled = true;
     };
-  }, [reloadToken, service, loadDetailsFor, settingsActiveDays, t]);
+  }, [reloadToken, service, loadDetailsFor, settingsActiveDays, loadErrorText, t]);
 
   // Load the All Jobs tab (all engineers, next N days) when enabled. Independent of the self-query
   // and the focus lock.
@@ -308,6 +339,7 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
       details={activeDetails}
       loading={isAllJobsTab ? allJobsLoading : loading}
       error={error}
+      notice={isAllJobsTab ? undefined : notice}
       readOnly={isAllJobsTab}
       statusBusy={statusBusy}
       boardBusy={isAllJobsTab ? false : boardBusy}
