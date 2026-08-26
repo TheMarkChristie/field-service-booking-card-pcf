@@ -1,5 +1,9 @@
 // ── Shared types & domain constants for the Booking Card List control ─────────
 
+// Shown small in the tab bar so you can see which build is actually loaded on the device
+// (mobile caches the control bundle). KEEP IN SYNC with ControlManifest.Input.xml version.
+export const CONTROL_VERSION = "1.1.0";
+
 /** Field Service booking-status option values (global choice msdyn_bookingsystemstatus). */
 export const FieldServiceStatus = {
   Scheduled: 690970000,
@@ -33,12 +37,15 @@ export const ACTIVE_FS_STATUSES = new Set<number>([
 ]);
 
 export type BuiltinBucket = "active" | "today" | "tomorrow" | "complete";
-export const BUILTIN_BUCKETS: BuiltinBucket[] = ["active", "today", "tomorrow", "complete"];
 
-// How many days back the Complete tab shows finished (Completed/Cancelled) jobs. The control
-// queries the signed-in user's bookings itself (today, tomorrow, and finished jobs within this
-// window), so no system views need to be configured.
-export const COMPLETE_WINDOW_DAYS = 7;
+// This environment requires a Work Order Sub-Status on the booking (bookableresourcebooking.
+// prx3_substatus) before it can move to a TERMINAL status (a business rule enforces it). Each
+// terminal booking Field Service status maps to a Work Order System Status; the control resolves an
+// active msdyn_workordersubstatus for that value and sets it alongside the status change.
+export const TERMINAL_WO_SYSTEMSTATUS: Record<number, number> = {
+  [FieldServiceStatus.Canceled]: 690970005, // WO System Status: Canceled
+  [FieldServiceStatus.Completed]: 690970003, // WO System Status: Completed
+};
 
 // Terminal statuses: a booking here is finished. Its status can never be changed again,
 // but it can still be opened to view the record. (Also drives the "complete" bucket.)
@@ -82,6 +89,8 @@ export interface BookingCardVM {
   travelText: string;
   bookingStatusName: string;
   fieldServiceStatus?: number;
+  /** Booking Status record id — lets online enrichment resolve FS status if the view omits it. */
+  bookingStatusId?: string;
   /** Bookable resource (engineer) name — shown on the All Jobs tab. */
   resourceName: string;
   /** Work Order priority name (from msdyn_priority), if any. */
@@ -137,13 +146,14 @@ export function parseExtraField(raw: string | null | undefined): ExtraFieldSpec 
  *  that started before activeFloor is ignored (returns null) so a stale open job isn't shown and
  *  doesn't block. null if none. */
 export function bucketOf(
-  vm: BookingCardVM, today: Date, tomorrow: Date, activeFloor: Date
+  vm: BookingCardVM, today: Date, tomorrow: Date, activeFloor: Date, completeFloor: Date
 ): BuiltinBucket | null {
   if (vm.fieldServiceStatus != null && ACTIVE_FS_STATUSES.has(vm.fieldServiceStatus)) {
     return vm.startDate && vm.startDate >= activeFloor ? "active" : null;
   }
   if (vm.fieldServiceStatus != null && TERMINAL_FS_STATUSES.has(vm.fieldServiceStatus)) {
-    return "complete";
+    // Completed/cancelled jobs older than the Completed window (prx3_completedbookingdays) drop off.
+    return vm.startDate && vm.startDate >= completeFloor ? "complete" : null;
   }
   if (!vm.startDate) return null;
   const d = vm.startDate;

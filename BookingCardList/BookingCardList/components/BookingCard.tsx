@@ -26,16 +26,22 @@ const useStyles = makeStyles({
   headerRow: {
     display: "flex",
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    alignItems: "flex-start",
+    flexWrap: "wrap",
     columnGap: "8px",
+    rowGap: "6px",
   },
   headerLeft: {
     display: "flex",
     flexDirection: "row",
     alignItems: "center",
+    flexWrap: "wrap",
     columnGap: "8px",
+    rowGap: "4px",
     minWidth: 0,
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: "auto",
   },
   headerRight: {
     display: "flex",
@@ -46,13 +52,15 @@ const useStyles = makeStyles({
     columnGap: "6px",
     rowGap: "4px",
     minWidth: 0,
+    marginLeft: "auto",
   },
   // Header pill (incident type / header badge). Unlike Fluent's Badge it has no fixed height,
   // so multi-line text wraps and the pill grows to fit instead of clipping.
   chip: {
     display: "inline-block",
     boxSizing: "border-box",
-    maxWidth: "200px",
+    flexShrink: 1,
+    maxWidth: "100%",
     whiteSpace: "normal",
     overflowWrap: "break-word",
     textAlign: "center",
@@ -156,7 +164,17 @@ const useStyles = makeStyles({
     height: "1px",
     backgroundColor: tokens.colorNeutralStroke2,
   },
+  // The status control was a native <select>; its React onChange never fires inside the Field Service
+  // mobile webview (the dropdown opens but picking an option does nothing). Rebuilt as a button + a
+  // click-based popup menu — onClick works everywhere the native change event does not.
+  statusWrap: {
+    position: "relative",
+    flexShrink: 0,
+  },
   statusSelect: {
+    display: "inline-flex",
+    alignItems: "center",
+    columnGap: "4px",
     backgroundColor: tokens.colorBrandBackground,
     color: tokens.colorNeutralForegroundOnBrand,
     borderTopStyle: "none",
@@ -167,13 +185,64 @@ const useStyles = makeStyles({
     paddingTop: "6px",
     paddingBottom: "6px",
     paddingLeft: "12px",
-    paddingRight: "8px",
+    paddingRight: "10px",
     fontSize: tokens.fontSizeBase300,
     fontWeight: tokens.fontWeightSemibold,
     cursor: "pointer",
+    ":hover": {
+      backgroundColor: tokens.colorBrandBackgroundHover,
+    },
     ":disabled": {
       opacity: 0.6,
       cursor: "default",
+      backgroundColor: tokens.colorBrandBackground,
+    },
+  },
+  caret: {
+    fontSize: "10px",
+    lineHeight: "1",
+  },
+  statusMenu: {
+    zIndex: 30,
+    minWidth: "170px",
+    display: "flex",
+    flexDirection: "column",
+    paddingTop: "4px",
+    paddingBottom: "4px",
+    backgroundColor: tokens.colorNeutralBackground1,
+    borderRadius: "6px",
+    borderTopWidth: "1px",
+    borderRightWidth: "1px",
+    borderBottomWidth: "1px",
+    borderLeftWidth: "1px",
+    borderTopStyle: "solid",
+    borderRightStyle: "solid",
+    borderBottomStyle: "solid",
+    borderLeftStyle: "solid",
+    borderTopColor: tokens.colorNeutralStroke2,
+    borderRightColor: tokens.colorNeutralStroke2,
+    borderBottomColor: tokens.colorNeutralStroke2,
+    borderLeftColor: tokens.colorNeutralStroke2,
+    boxShadow: tokens.shadow16,
+  },
+  statusMenuItem: {
+    display: "block",
+    width: "100%",
+    textAlign: "left",
+    backgroundColor: "transparent",
+    borderTopStyle: "none",
+    borderRightStyle: "none",
+    borderBottomStyle: "none",
+    borderLeftStyle: "none",
+    paddingTop: "9px",
+    paddingBottom: "9px",
+    paddingLeft: "14px",
+    paddingRight: "14px",
+    fontSize: tokens.fontSizeBase300,
+    color: tokens.colorNeutralForeground1,
+    cursor: "pointer",
+    ":hover": {
+      backgroundColor: tokens.colorNeutralBackground1Hover,
     },
   },
 });
@@ -193,13 +262,19 @@ const actionLabel = (key: StatusActionKey, t: T): string => {
 
 const stop = (e: React.SyntheticEvent): void => e.stopPropagation();
 
-/** Pick black or white text for a given hex background, by perceived luminance. */
+/** Pick black or white pill text for a given hex background using the real WCAG contrast ratio
+ *  (relative luminance with sRGB gamma), so configured mid-tone colours still get legible text. */
 const readableText = (bg: string): string => {
   const m = /^#?([0-9a-f]{6})$/i.exec(bg.trim());
   if (!m) return "#ffffff";
   const n = parseInt(m[1], 16);
-  const lum = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
-  return lum > 0.6 ? "#000000" : "#ffffff";
+  const chan = (c: number): number => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  const L = 0.2126 * chan(n >> 16) + 0.7152 * chan((n >> 8) & 255) + 0.0722 * chan(n & 255);
+  // Contrast ratio vs black = (L+0.05)/0.05; vs white = 1.05/(L+0.05). Pick the higher.
+  return (L + 0.05) / 0.05 >= 1.05 / (L + 0.05) ? "#000000" : "#ffffff";
 };
 
 export interface BookingCardProps {
@@ -228,6 +303,27 @@ export interface BookingCardProps {
 
 export const BookingCard: React.FC<BookingCardProps> = (props) => {
   const styles = useStyles();
+  const [statusMenuOpen, setStatusMenuOpen] = React.useState(false);
+  // The menu is position:fixed (see below) so the card's overflow:hidden can't clip it; menuPos is
+  // computed from the button's rect on open.
+  const [menuPos, setMenuPos] = React.useState<{ top: number; right: number } | null>(null);
+  const statusWrapRef = React.useRef<HTMLDivElement>(null);
+  // Close on any outside pointer-down, or on scroll (a fixed menu must not linger while the page
+  // moves). No onBlur — blur would fire before an option's click and swallow it. The menu stays a
+  // DOM child of statusWrap even though it renders fixed, so contains() still recognises option clicks.
+  React.useEffect(() => {
+    if (!statusMenuOpen) return;
+    const close = (e: Event): void => {
+      if (e.type === "scroll") { setStatusMenuOpen(false); return; }
+      if (statusWrapRef.current && !statusWrapRef.current.contains(e.target as Node)) setStatusMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", close, true);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      document.removeEventListener("pointerdown", close, true);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [statusMenuOpen]);
   const {
     vm, statusBusy, boardBusy, statusLockReason, openDisabled, openLockHint, extrasTitle, priorityColours, customStatusName,
     readOnly, onOpen, onOpenMaps, onChangeStatus, t,
@@ -267,12 +363,25 @@ export const BookingCard: React.FC<BookingCardProps> = (props) => {
       className={mergeClasses(styles.card, openBlocked && styles.cardLocked)}
       style={priorityColour ? { borderTopColor: priorityColour } : undefined}
       onClick={openBlocked ? undefined : onOpen}
+      onKeyDown={
+        openBlocked
+          ? undefined
+          : (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onOpen();
+              }
+            }
+      }
+      role="button"
+      tabIndex={openBlocked ? -1 : 0}
+      aria-disabled={openBlocked || undefined}
       aria-label={vm.workOrderNumber}
       title={
         openDisabled
           ? openLockHint ?? t("OpenLocked", "Finish the active job before opening another.")
           : busyElsewhere
-          ? t("Updating", "Updating…")
+          ? t("Updating", "Updating status…")
           : undefined
       }
     >
@@ -392,27 +501,68 @@ export const BookingCard: React.FC<BookingCardProps> = (props) => {
           {vm.bookingStatusName || t("StatusUnknown", "No status")}
         </Text>
         {readOnly ? null : statusBusy ? (
-          <Spinner size="tiny" labelPosition="after" label={t("Updating", "Updating…")} />
+          <Spinner size="tiny" labelPosition="after" label={t("Updating", "Updating status…")} />
         ) : (
-          <select
-            className={styles.statusSelect}
-            value=""
-            disabled={statusDisabled || busyElsewhere}
-            title={statusDisabled ? lockedTitle : undefined}
-            aria-label={t("ChangeStatus", "Update status")}
-            onChange={(e) => {
-              const v = e.target.value;
-              if (v) onChangeStatus(v as StatusChoice);
-            }}
-          >
-            <option value="">{placeholder}</option>
-            {statusActions.map((a) => (
-              <option key={a.key} value={a.key}>
-                {actionLabel(a.key, t)}
-              </option>
-            ))}
-            {customStatusName ? <option value="custom">{customStatusName}</option> : null}
-          </select>
+          <div className={styles.statusWrap} ref={statusWrapRef}>
+            <button
+              type="button"
+              className={styles.statusSelect}
+              disabled={statusDisabled || busyElsewhere}
+              title={statusDisabled ? lockedTitle : undefined}
+              aria-haspopup="menu"
+              aria-expanded={statusMenuOpen}
+              aria-label={t("ChangeStatus", "Update status")}
+              onClick={(e) => {
+                if (statusMenuOpen) { setStatusMenuOpen(false); return; }
+                const rect = e.currentTarget.getBoundingClientRect();
+                const menuH = 140;
+                const openBelow = rect.bottom + menuH + 8 <= window.innerHeight;
+                setMenuPos({
+                  top: openBelow ? rect.bottom + 4 : Math.max(4, rect.top - menuH - 4),
+                  right: Math.max(4, window.innerWidth - rect.right),
+                });
+                setStatusMenuOpen(true);
+              }}
+            >
+              <span>{placeholder}</span>
+              <span className={styles.caret} aria-hidden="true">&#9662;</span>
+            </button>
+            {statusMenuOpen && menuPos ? (
+              <div
+                className={styles.statusMenu}
+                role="menu"
+                style={{ position: "fixed", top: menuPos.top, right: menuPos.right }}
+              >
+                {statusActions.map((a) => (
+                  <button
+                    key={a.key}
+                    type="button"
+                    role="menuitem"
+                    className={styles.statusMenuItem}
+                    onClick={() => {
+                      setStatusMenuOpen(false);
+                      onChangeStatus(a.key);
+                    }}
+                  >
+                    {actionLabel(a.key, t)}
+                  </button>
+                ))}
+                {customStatusName ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={styles.statusMenuItem}
+                    onClick={() => {
+                      setStatusMenuOpen(false);
+                      onChangeStatus("custom");
+                    }}
+                  >
+                    {customStatusName}
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
         )}
       </div>
     </Card>

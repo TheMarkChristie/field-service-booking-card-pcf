@@ -1,4 +1,5 @@
 import * as React from "react";
+import { tokens } from "@fluentui/react-components";
 
 interface ErrorBoundaryProps {
   children?: React.ReactNode;
@@ -24,13 +25,14 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     if (this.state.error) {
       return (
         <div
+          role="alert"
           style={{
             padding: 12,
             margin: 12,
-            color: "#a4262c",
-            background: "#fde7e9",
+            color: tokens.colorStatusDangerForeground1,
+            background: tokens.colorStatusDangerBackground1,
             borderRadius: 4,
-            fontFamily: "Segoe UI, sans-serif",
+            fontFamily: tokens.fontFamilyBase,
             fontSize: 13,
             whiteSpace: "pre-wrap",
           }}
