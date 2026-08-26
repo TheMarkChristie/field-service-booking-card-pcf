@@ -1,4 +1,4 @@
-import { BookingCardVM, ProductLine, ExtraFieldSpec, CustomStatus, ACTIVE_FS_STATUSES } from "../types";
+import { BookingCardVM, ProductLine, ExtraFieldSpec, CustomStatus } from "../types";
 
 type WebApi = ComponentFramework.WebApi;
 type Entity = ComponentFramework.WebApi.Entity;
@@ -41,27 +41,6 @@ function fxDate(d: Date): string {
   return d.toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
-/** Friendly labels for the tables the control reads, for the offline-profile gap message. */
-const TABLE_LABELS: Record<string, string> = {
-  bookableresourcebooking: "Bookings",
-  bookableresource: "Bookable Resources",
-  bookingstatus: "Booking Statuses",
-  msdyn_workorder: "Work Orders",
-  msdyn_workorderproduct: "Work Order Products",
-  msdyn_fieldservicesetting: "Field Service Settings",
-};
-
-/**
- * Does this error look like the mobile offline-first engine rejecting a query because the table or
- * a requested column isn't in the app's offline profile? Those surface as "Specified FetchXML is
- * invalid" (or an explicit "not available offline"), as opposed to a genuine network/permission
- * error — so we only attribute a gap to the offline profile when the signature matches.
- */
-function isOfflineProfileError(e: unknown): boolean {
-  const msg = (e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e)) || "";
-  return /fetchxml is invalid|not (currently )?available offline|isn't available offline|is not available offline/i.test(msg);
-}
-
 /**
  * For a custom-field name, the FetchXML attribute to request. Lookups entered as the OData
  * "_logicalname_value" form map back to the lookup's logical name for FetchXML; the result
@@ -102,19 +81,20 @@ interface BookingRow {
  */
 export class BookingDataService {
   private api: WebApi;
+  private client: unknown;
   private userId: string;
   private dateFmt: Intl.DateTimeFormat;
   private timeFmt: Intl.DateTimeFormat;
   private statusIdCache = new Map<number, string | undefined>();
-  private myResourceIds?: string[];
-  private activeStatusIds?: string[];
-  // Offline-profile gaps discovered during the current load: entity logical name -> the specific
-  // columns that couldn't be read (empty set = the whole table isn't queryable offline). Surfaced
-  // to the user so an admin knows exactly what to add to the app's mobile offline profile.
-  private offlineGaps = new Map<string, Set<string>>();
+  private allStatusesCache?: { id: string; fs: number | null; active: boolean }[];
+  private allSubStatusesCache?: { id: string; sys: number | null; active: boolean }[];
+  // First good Field Service Settings read is cached for the control's lifetime, so a later offline
+  // dataset refresh (which can't re-read the settings) doesn't lose the Active window / Next-days tab.
+  private settingsCache?: { customStatus?: CustomStatus; activeDays?: number; completedDays?: number; nextDays?: number };
 
   constructor(context: ComponentFramework.Context<unknown>) {
     this.api = context.webAPI;
+    this.client = context.client;
     // Signed-in user id (to resolve "my" resource via a flat userid filter). Strip any braces.
     this.userId = (context.userSettings?.userId ?? "").replace(/[{}]/g, "");
     this.dateFmt = new Intl.DateTimeFormat(undefined, {
@@ -127,6 +107,39 @@ export class BookingDataService {
       hour: "2-digit",
       minute: "2-digit",
     });
+  }
+
+  /**
+   * True when the Field Service mobile app is running against its LOCAL OFFLINE STORE. Offline-first
+   * reads/writes the local store even when the device has a signal, and that store's FetchXML engine
+   * is stricter (rejects conditions/attributes on columns not in the offline profile, link-entities,
+   * etc.). Queries that can be richer online branch on this. Defensive: any failure = treat as online.
+   */
+  isOffline(): boolean {
+    try {
+      const c = this.client as { isOffline?: () => boolean } | undefined;
+      return typeof c?.isOffline === "function" ? !!c.isOffline() : false;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * True when the DEVICE genuinely has no connectivity — used ONLY for the "Working offline"
+   * banner/icon. Distinct from isOffline(): the platform's isOffline() reports the offline-first
+   * app MODE, which is true even on a live connection, so the banner fired while the technician was
+   * actually online. Prefer navigator.onLine (real connectivity); fall back to the platform flag
+   * only when the host doesn't expose it. Query branching still uses isOffline(), not this.
+   */
+  isDeviceOffline(): boolean {
+    try {
+      if (typeof navigator !== "undefined" && typeof navigator.onLine === "boolean") {
+        return !navigator.onLine;
+      }
+      return this.isOffline();
+    } catch {
+      return false;
+    }
   }
 
   /** Fetch full card detail for a set of booking ids, returned in the input order. */
@@ -378,7 +391,6 @@ export class BookingDataService {
         // Products are an enrichment: if the table/attribute isn't in the offline profile the
         // card still loads without a product list, instead of failing the whole load.
         console.warn("[BookingCardList] work order products skipped (offline profile?)", e);
-        if (isOfflineProfileError(e)) this.noteOfflineGap(WORKORDERPRODUCT);
         continue;
       }
       for (const e of entities) {
@@ -415,7 +427,6 @@ export class BookingDataService {
         // The Field Service Status mapping is an enrichment (drives the status pill colour); if
         // Booking Status isn't in the offline profile the card still loads without it.
         console.warn("[BookingCardList] booking-status FS mapping skipped (offline profile?)", e);
-        if (isOfflineProfileError(e)) this.noteOfflineGap(BOOKINGSTATUS);
         continue;
       }
       for (const s of entities) {
@@ -424,137 +435,6 @@ export class BookingDataService {
       }
     }
     return map;
-  }
-
-  /** Bookable resource id(s) for the signed-in user (cached). Flat query — no link-entity. */
-  private async getMyResourceIds(): Promise<string[]> {
-    if (this.myResourceIds) return this.myResourceIds;
-    if (!this.userId) {
-      this.myResourceIds = [];
-      return this.myResourceIds;
-    }
-    try {
-      const fx =
-        `<fetch><entity name="bookableresource">` +
-        `<attribute name="bookableresourceid" />` +
-        `<filter>${inCondition("userid", [this.userId])}</filter>` +
-        `</entity></fetch>`;
-      const ents = await this.fetchXml("bookableresource", fx);
-      this.myResourceIds = ents.map((e) => e.bookableresourceid as string).filter((id) => !!id);
-    } catch (e) {
-      console.warn("[BookingCardList] could not resolve the signed-in user's bookable resource", e);
-      if (isOfflineProfileError(e)) this.noteOfflineGap("bookableresource");
-      this.myResourceIds = [];
-    }
-    return this.myResourceIds;
-  }
-
-  /** Booking Status record ids whose Field Service Status is active (Traveling/In Progress). */
-  private async getActiveStatusIds(): Promise<string[]> {
-    if (this.activeStatusIds) return this.activeStatusIds;
-    try {
-      const vals = [...ACTIVE_FS_STATUSES].map((v) => `<value>${v}</value>`).join("");
-      const fx =
-        `<fetch><entity name="${BOOKINGSTATUS}">` +
-        `<attribute name="bookingstatusid" />` +
-        `<filter><condition attribute="msdyn_fieldservicestatus" operator="in">${vals}</condition></filter>` +
-        `</entity></fetch>`;
-      const ents = await this.fetchXml(BOOKINGSTATUS, fx);
-      this.activeStatusIds = ents.map((e) => e.bookingstatusid as string).filter((id) => !!id);
-    } catch (e) {
-      console.warn("[BookingCardList] could not resolve active booking statuses", e);
-      if (isOfflineProfileError(e)) this.noteOfflineGap(BOOKINGSTATUS);
-      this.activeStatusIds = [];
-    }
-    return this.activeStatusIds;
-  }
-
-  /**
-   * Booking ids for the signed-in user across the Today / Tomorrow / Complete window — built in
-   * code, so no system views are needed. The caller buckets them with bucketOf(). The window
-   * spans from `completeWindowDays` before today (recent finished jobs) to the end of tomorrow.
-   *
-   * All FetchXML is FLAT (no link-entity joins): the new mobile **offline-first** engine rejects
-   * inner/outer joins ("Specified FetchXML is invalid"). So the user's resource id(s) and the
-   * active-status id(s) are resolved with their own flat queries, then bookings are filtered by
-   * `resource in (...)` and `bookingstatus in (...)`. Works offline-first, classic offline & online.
-   */
-  async getMyBookingIds(completeWindowDays: number, activeDays?: number): Promise<string[]> {
-    const resourceIds = await this.getMyResourceIds();
-    if (!resourceIds.length) return [];
-
-    const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const windowStart = new Date(
-      startOfToday.getFullYear(), startOfToday.getMonth(),
-      startOfToday.getDate() - Math.max(0, completeWindowDays)
-    );
-    const endOfTomorrow = new Date(
-      startOfToday.getFullYear(), startOfToday.getMonth(), startOfToday.getDate() + 2
-    );
-    // Active jobs older than this are ignored (not loaded → not shown, don't block). When
-    // activeDays is unset there is no floor — all active jobs are loaded regardless of age.
-    const activeFloor =
-      activeDays == null
-        ? undefined
-        : new Date(
-            startOfToday.getFullYear(), startOfToday.getMonth(),
-            startOfToday.getDate() - Math.max(0, activeDays)
-          );
-    const resCond = inCondition("resource", resourceIds);
-
-    // 1) The Today / Tomorrow / Complete window for this user's resource(s).
-    const windowFx =
-      `<fetch><entity name="${BOOKING}">` +
-      `<attribute name="bookableresourcebookingid" />` +
-      `<filter type="and">${resCond}` +
-      `<condition attribute="starttime" operator="ge" value="${fxDate(windowStart)}" />` +
-      `<condition attribute="starttime" operator="lt" value="${fxDate(endOfTomorrow)}" />` +
-      `</filter>` +
-      `<order attribute="starttime" />` +
-      `</entity></fetch>`;
-
-    const tasks: Promise<Entity[]>[] = [
-      this.fetchXml(BOOKING, windowFx).catch((e) => {
-        // The Bookings table (and its start-time column) must be in the offline profile — this is
-        // the core query. Record the gap so the error can name it, then let the load fail.
-        if (isOfflineProfileError(e)) this.noteOfflineGap(BOOKING);
-        throw e;
-      }),
-    ];
-
-    // 2) ACTIVE (Traveling / In Progress) bookings started within the active window (activeDays),
-    //    so a recent forgotten open job shows in the Active tab and locks the board — matching the
-    //    server-side one-running-booking rule — but a stale one (older than activeDays) is left out
-    //    so it can't block forever. Best-effort: skip if statuses/profile don't resolve.
-    const activeStatusIds = await this.getActiveStatusIds();
-    if (activeStatusIds.length) {
-      const activeDateCond = activeFloor
-        ? `<condition attribute="starttime" operator="ge" value="${fxDate(activeFloor)}" />`
-        : "";
-      const activeFx =
-        `<fetch><entity name="${BOOKING}">` +
-        `<attribute name="bookableresourcebookingid" />` +
-        `<filter type="and">${resCond}${inCondition("bookingstatus", activeStatusIds)}${activeDateCond}</filter>` +
-        `</entity></fetch>`;
-      tasks.push(
-        this.fetchXml(BOOKING, activeFx).catch((e) => {
-          console.warn("[BookingCardList] active-booking query failed; using the date window only", e);
-          if (isOfflineProfileError(e)) this.noteOfflineGap(BOOKING);
-          return [] as Entity[];
-        })
-      );
-    }
-
-    const results = await Promise.all(tasks);
-    const ids = new Set<string>();
-    for (const ents of results) {
-      for (const e of ents) {
-        const id = e.bookableresourcebookingid as string;
-        if (id) ids.add(id);
-      }
-    }
-    return [...ids];
   }
 
   /**
@@ -580,11 +460,51 @@ export class BookingDataService {
     return entities.map((e) => e.bookableresourcebookingid as string).filter((id) => !!id);
   }
 
-  /** Point the booking's Booking Status lookup at the given status record. */
-  async setBookingStatus(bookingId: string, statusRecordId: string): Promise<void> {
-    await this.api.updateRecord(BOOKING, bookingId, {
+  /**
+   * Point the booking's Booking Status lookup at the given status record. When a sub-status id is
+   * supplied it also sets the booking's Work Order Sub-Status (prx3_substatus) IN THE SAME UPDATE —
+   * this environment's business rule requires it for terminal moves, and the offline sync-back
+   * enforces it too, so both must be in one write.
+   */
+  async setBookingStatus(bookingId: string, statusRecordId: string, subStatusId?: string): Promise<void> {
+    const body: Record<string, unknown> = {
       "BookingStatus@odata.bind": `/${BOOKINGSTATUS_SET}(${statusRecordId})`,
+    };
+    if (subStatusId) {
+      body["prx3_Substatus@odata.bind"] = `/msdyn_workordersubstatuses(${subStatusId})`;
+    }
+    await this.api.updateRecord(BOOKING, bookingId, body);
+  }
+
+  /**
+   * Active Work Order Sub-Status id mapped to a Work Order System Status value — for prx3_substatus
+   * on the booking, which this environment requires on terminal moves. Reads the whole (small)
+   * msdyn_workordersubstatus table once and matches in JS (option-set filters fail offline, and the
+   * value can come back as a string), same pattern as the Booking Status resolver.
+   */
+  async resolveSubStatusId(woSystemStatus: number): Promise<string | undefined> {
+    const all = await this.loadAllSubStatuses();
+    const matches = all.filter((s) => s.sys === woSystemStatus);
+    const chosen = matches.find((s) => s.active) ?? matches[0];
+    return chosen?.id;
+  }
+
+  private async loadAllSubStatuses(): Promise<{ id: string; sys: number | null; active: boolean }[]> {
+    if (this.allSubStatusesCache) return this.allSubStatusesCache;
+    const rows = await this.readSmallTable("msdyn_workordersubstatus", [
+      "msdyn_workordersubstatusid",
+      "msdyn_systemstatus",
+      "statecode",
+    ]);
+    this.allSubStatusesCache = rows.map((e) => {
+      const raw = e.msdyn_systemstatus;
+      return {
+        id: e.msdyn_workordersubstatusid as string,
+        sys: raw == null || raw === "" ? null : Number(raw),
+        active: e.statecode == null || Number(e.statecode) === 0,
+      };
     });
+    return this.allSubStatusesCache;
   }
 
   /** Point the work order's Sub-Status lookup at the given Work Order Substatus record. */
@@ -600,59 +520,155 @@ export class BookingDataService {
    * environment (like the plugin's paused sub-status) instead of being baked into the
    * control config per environment. Returns undefined when not configured.
    */
-  async getFieldServiceSettings(): Promise<{ customStatus?: CustomStatus; activeDays?: number }> {
+  async getFieldServiceSettings(): Promise<{ customStatus?: CustomStatus; activeDays?: number; completedDays?: number; nextDays?: number }> {
+    // Reuse the first good read for the control's lifetime. This is what stops the online->offline
+    // switch from wiping the Active window and the "Next N Days" tab: once read (typically on the
+    // first online render), the values survive every later offline dataset refresh.
+    if (this.settingsCache) return this.settingsCache;
+
+    // Read order matters offline. A FetchXML query for the settings row is REJECTED by the mobile
+    // offline store after the local sync, which returned {} and blanked the windows. A plain OData
+    // $select (no filter) is the most offline-store-compatible read, so try it first and keep
+    // FetchXML only as an online fallback.
+    const cols =
+      "prx3_customstatuslabel,_prx3_custombookingstatus_value,_prx3_customworkordersubstatus_value," +
+      "prx3_activebookingdays,prx3_completedbookingdays,prx3_nextbookingdays";
+    let s: Entity | undefined;
     try {
-      const fx =
-        `<fetch top="1"><entity name="msdyn_fieldservicesetting">` +
-        `<attribute name="prx3_customstatuslabel" />` +
-        `<attribute name="prx3_custombookingstatus" />` +
-        `<attribute name="prx3_customworkordersubstatus" />` +
-        `<attribute name="prx3_activebookingdays" />` +
-        `</entity></fetch>`;
-      const entities = await this.fetchXml("msdyn_fieldservicesetting", fx);
-      if (!entities.length) return {};
-      const s = entities[0];
-
-      // Active-booking window (days back an open booking still shows in Active + blocks).
-      const ad = s.prx3_activebookingdays as number | null;
-      const activeDays = typeof ad === "number" && ad > 0 ? ad : undefined;
-
-      // Custom "Start Job" status (only when a booking status is configured).
-      const bookingStatusId = (s._prx3_custombookingstatus_value as string) || undefined;
-      let customStatus: CustomStatus | undefined;
-      if (bookingStatusId) {
-        const label = (s.prx3_customstatuslabel as string) || "";
-        const statusName = (s[`_prx3_custombookingstatus_value${FV}`] as string) || "";
-        customStatus = {
-          name: label || statusName || "Custom",
-          bookingStatusId,
-          workOrderSubStatusId: (s._prx3_customworkordersubstatus_value as string) || undefined,
-        };
+      const res = await this.api.retrieveMultipleRecords("msdyn_fieldservicesetting", `?$select=${cols}&$top=1`);
+      s = res.entities[0];
+    } catch (e1) {
+      console.warn("[BookingCardList] settings OData read failed; trying FetchXML", e1);
+      try {
+        const fx =
+          `<fetch top="1"><entity name="msdyn_fieldservicesetting">` +
+          `<attribute name="prx3_customstatuslabel" />` +
+          `<attribute name="prx3_custombookingstatus" />` +
+          `<attribute name="prx3_customworkordersubstatus" />` +
+          `<attribute name="prx3_activebookingdays" />` +
+          `<attribute name="prx3_completedbookingdays" />` +
+          `<attribute name="prx3_nextbookingdays" />` +
+          `</entity></fetch>`;
+        s = (await this.fetchXml("msdyn_fieldservicesetting", fx))[0];
+      } catch (e2) {
+        console.warn("[BookingCardList] could not read Field Service Settings", e2);
       }
-      return { customStatus, activeDays };
-    } catch (e) {
-      console.warn("[BookingCardList] could not read Field Service Settings", e);
-      if (isOfflineProfileError(e)) this.noteOfflineGap("msdyn_fieldservicesetting");
-      return {};
     }
+    if (!s) return {};
+
+    // The mobile offline store can hand back whole numbers as strings, so coerce rather than
+    // type-check (a string "1" would otherwise be dropped, collapsing the window to "no limit").
+    const days = (v: unknown): number | undefined => {
+      const n = typeof v === "number" ? v : v == null || v === "" ? NaN : Number(v);
+      return Number.isFinite(n) && n > 0 ? n : undefined;
+    };
+    const activeDays = days(s.prx3_activebookingdays);
+    const completedDays = days(s.prx3_completedbookingdays);
+    const nextDays = days(s.prx3_nextbookingdays);
+
+    // Custom "Start Job" status (only when a booking status is configured).
+    const bookingStatusId = (s._prx3_custombookingstatus_value as string) || undefined;
+    let customStatus: CustomStatus | undefined;
+    if (bookingStatusId) {
+      const label = (s.prx3_customstatuslabel as string) || "";
+      const statusName = (s[`_prx3_custombookingstatus_value${FV}`] as string) || "";
+      customStatus = {
+        name: label || statusName || "Custom",
+        bookingStatusId,
+        workOrderSubStatusId: (s._prx3_customworkordersubstatus_value as string) || undefined,
+      };
+    }
+    const result = { customStatus, activeDays, completedDays, nextDays };
+    this.settingsCache = result;
+    return result;
   }
 
-  /** Find an active Booking Status record id by its Field Service Status value. */
+  /**
+   * Find an active Booking Status record id by its Field Service Status value. ONE path for online
+   * AND offline (no isOffline() branch): read the whole (tiny) Booking Status table and match the
+   * target value in JS. This is deliberately NOT a server-style filtered query — the mobile offline
+   * store won't apply a filter condition on the msdyn_fieldservicestatus option-set (returns nothing)
+   * and can return the value as a numeric string. Fetch-all + coerced JS match works in every mode.
+   */
   async resolveStatusId(fieldServiceStatus: number): Promise<string | undefined> {
     if (this.statusIdCache.has(fieldServiceStatus)) {
       return this.statusIdCache.get(fieldServiceStatus);
     }
-    const fx =
-      `<fetch top="1"><entity name="${BOOKINGSTATUS}">` +
-      `<attribute name="bookingstatusid" />` +
-      `<filter type="and">` +
-      `<condition attribute="msdyn_fieldservicestatus" operator="eq" value="${fieldServiceStatus}" />` +
-      `<condition attribute="statecode" operator="eq" value="0" />` +
-      `</filter></entity></fetch>`;
-    const entities = await this.fetchXml(BOOKINGSTATUS, fx);
-    const id = entities.length ? (entities[0].bookingstatusid as string) : undefined;
-    this.statusIdCache.set(fieldServiceStatus, id);
+    const all = await this.loadAllStatuses();
+    const matches = all.filter((s) => s.fs === fieldServiceStatus);
+    const chosen = matches.find((s) => s.active) ?? matches[0];
+    const id = chosen?.id;
+    if (id) this.statusIdCache.set(fieldServiceStatus, id);
     return id;
+  }
+
+  /**
+   * Seed the FS-status -> Booking Status id cache from cards already loaded on the board. That data
+   * is guaranteed to be on the device (it's rendered), so a status change to any status currently
+   * visible resolves with NO query at all — the most reliable path offline. The table fetch-all
+   * (resolveStatusId) remains the fallback for statuses not present on screen.
+   */
+  seedStatusCache(vms: BookingCardVM[]): void {
+    for (const v of vms) {
+      if (v.fieldServiceStatus != null && v.bookingStatusId) {
+        this.statusIdCache.set(v.fieldServiceStatus, v.bookingStatusId);
+      }
+    }
+  }
+
+  /**
+   * Every Booking Status record (id + Field Service status value + active flag), read once and cached.
+   * No filter is applied — the offline store can't filter on the option-set, but it returns the full
+   * synced table, and we match in JS. Online it's an equally cheap full read.
+   */
+  private async loadAllStatuses(): Promise<{ id: string; fs: number | null; active: boolean }[]> {
+    if (this.allStatusesCache) return this.allStatusesCache;
+    const rows = await this.readSmallTable(BOOKINGSTATUS, [
+      "bookingstatusid",
+      "msdyn_fieldservicestatus",
+      "statecode",
+    ]);
+    // The offline store can return an option-set value as a numeric STRING ("690970003"), so coerce
+    // to a number — a strict === against the numeric FS value would otherwise never match (this was
+    // the "No active Booking Status found" cause even after the records synced).
+    this.allStatusesCache = rows.map((e) => {
+      const raw = e.msdyn_fieldservicestatus;
+      return {
+        id: e.bookingstatusid as string,
+        fs: raw == null || raw === "" ? null : Number(raw),
+        active: e.statecode == null || Number(e.statecode) === 0,
+      };
+    });
+    return this.allStatusesCache;
+  }
+
+  /**
+   * Read every row of a small reference table (Booking Status, WO Sub-Status), offline-first. An
+   * OData $select with NO filter is the most reliable form against the mobile offline store — a
+   * FetchXML query can be rejected offline ("Specified FetchXML is invalid"), returning zero rows,
+   * which caused "No active Booking Status" for any status not already on the board (e.g. Cancelled).
+   * FetchXML is kept as a fallback. Returns [] only if neither works (table not in the offline profile).
+   */
+  private async readSmallTable(entity: string, attrs: string[]): Promise<Entity[]> {
+    try {
+      const res = await this.api.retrieveMultipleRecords(entity, "?$select=" + attrs.join(","));
+      if (res.entities.length) return res.entities;
+    } catch (e) {
+      console.warn(`[BookingCardList] ${entity} OData read failed; trying FetchXML`, e);
+    }
+    const build = (a: string[]): string =>
+      `<fetch><entity name="${entity}">` + a.map((n) => `<attribute name="${n}" />`).join("") + `</entity></fetch>`;
+    return this.fetchTiered(entity, build, [attrs, attrs.slice(0, Math.max(1, attrs.length - 1))]);
+  }
+
+  /**
+   * Warm the full Booking Status + WO Sub-Status caches up front (best-effort). A change to a status
+   * that ISN'T on the board (e.g. Cancelled when nothing is cancelled) then resolves from cache with
+   * no query at click-time — the reliable path offline.
+   */
+  async preloadStatuses(): Promise<void> {
+    try { await this.loadAllStatuses(); } catch { /* best-effort */ }
+    try { await this.loadAllSubStatuses(); } catch { /* best-effort */ }
   }
 
   /** Run a FetchXML query via the Web API (resolves online or against the offline store). */
@@ -679,53 +695,16 @@ export class BookingDataService {
   ): Promise<Entity[]> {
     for (let i = 0; i < attrSets.length; i++) {
       try {
-        const res = await this.fetchXml(entity, build(attrSets[i]));
-        // Succeeded only after dropping fields → those dropped from the widest set are the columns
-        // missing from the offline profile. Record them so the user can be told precisely.
-        if (i > 0) {
-          const dropped = new Set(attrSets[0]);
-          for (const a of attrSets[i]) dropped.delete(a);
-          this.noteOfflineGap(entity, [...dropped]);
-        }
-        return res;
+        return await this.fetchXml(entity, build(attrSets[i]));
       } catch (e) {
         const last = i === attrSets.length - 1;
-        if (last) {
-          if (isOfflineProfileError(e)) this.noteOfflineGap(entity);
-          console.warn(`[BookingCardList] ${entity} query failed on every attribute set (offline profile?)`, e);
-        } else {
-          console.warn(`[BookingCardList] ${entity} query failed; retrying with fewer fields`, e);
-        }
+        console.warn(
+          `[BookingCardList] ${entity} query failed${last ? " on every attribute set (offline profile?)" : "; retrying with fewer fields"}`,
+          e
+        );
       }
     }
     return [];
-  }
-
-  /** Record an offline-profile gap for the current load (whole table, or specific columns). */
-  private noteOfflineGap(entity: string, columns?: string[]): void {
-    const set = this.offlineGaps.get(entity) ?? new Set<string>();
-    if (columns) columns.forEach((c) => set.add(c));
-    this.offlineGaps.set(entity, set);
-  }
-
-  /** Reset the offline-profile gap tracking at the start of a load. */
-  clearOfflineGaps(): void {
-    this.offlineGaps.clear();
-  }
-
-  /**
-   * Human-readable summary of the tables/columns that couldn't be read from the offline profile in
-   * the last load (e.g. "Work Orders (Est. Travel, Latitude); Booking Statuses"), or "" if none.
-   * The control shows this so an admin knows exactly what to add to the mobile offline profile.
-   */
-  getOfflineGapSummary(): string {
-    if (this.offlineGaps.size === 0) return "";
-    const parts: string[] = [];
-    for (const [entity, cols] of this.offlineGaps) {
-      const label = TABLE_LABELS[entity] ?? entity;
-      parts.push(cols.size ? `${label} (columns: ${[...cols].join(", ")})` : label);
-    }
-    return parts.join("; ");
   }
 
   private parseDate(iso: string): Date | undefined {
@@ -744,5 +723,87 @@ export class BookingDataService {
     if (h && m) return `${h} h ${m} min`;
     if (h) return `${h} h`;
     return `${m} min`;
+  }
+
+  // --- Public helpers for the offline dataset path (services/datasetMap.ts) ---
+  public fmtStart(d: Date): string {
+    return this.formatStart(d);
+  }
+  public fmtDuration(mins?: number): string {
+    return this.formatDuration(mins);
+  }
+  public parseIso(iso: string): Date | undefined {
+    return this.parseDate(iso);
+  }
+
+  /**
+   * ONLINE enrichment for cards built from the offline dataset. Fills any blank Work Order fields,
+   * adds the Products Needed list, custom extras / header badge, and backfills the FS status if the
+   * view didn't carry it. Best-effort: offline (Web API rejected) it returns the cards unchanged, so
+   * the offline card still renders from whatever the bound view provided.
+   */
+  public async enrichCards(
+    vms: BookingCardVM[],
+    extraSpecs: ExtraFieldSpec[] = [],
+    headerSpec?: ExtraFieldSpec
+  ): Promise<BookingCardVM[]> {
+    if (vms.length === 0) return vms;
+    const woIds = [...new Set(vms.map((v) => v.workOrderId).filter((x): x is string => !!x))];
+    const bookingIds = vms.map((v) => v.bookingId);
+    const statusIds = [...new Set(vms.map((v) => v.bookingStatusId).filter((x): x is string => !!x))];
+    const bookingExtraFields = extraSpecs.filter((x) => x.table === "booking").map((x) => x.field);
+    const woExtraFields = extraSpecs.filter((x) => x.table === "workorder").map((x) => x.field);
+    if (headerSpec) {
+      (headerSpec.table === "workorder" ? woExtraFields : bookingExtraFields).push(headerSpec.field);
+    }
+    try {
+      const [workOrders, productsByWo, statusFs, bookingExtras, woExtras] = await Promise.all([
+        this.getWorkOrders(woIds),
+        this.getWorkOrderProducts(woIds),
+        this.getStatusFsValues(statusIds),
+        this.getExtras(BOOKING, "bookableresourcebookingid", bookingIds, [...new Set(bookingExtraFields)]),
+        this.getExtras(WORKORDER, "msdyn_workorderid", woIds, [...new Set(woExtraFields)]),
+      ]);
+      return vms.map((v): BookingCardVM => {
+        const wo = v.workOrderId ? workOrders.get(v.workOrderId) : undefined;
+        const extras = extraSpecs
+          .map((spec) => {
+            const rec =
+              spec.table === "workorder"
+                ? v.workOrderId
+                  ? woExtras.get(v.workOrderId)
+                  : undefined
+                : bookingExtras.get(v.bookingId);
+            return rec?.[spec.field] ?? "";
+          })
+          .filter((x) => x !== "");
+        const headerRec = headerSpec
+          ? headerSpec.table === "workorder"
+            ? v.workOrderId
+              ? woExtras.get(v.workOrderId)
+              : undefined
+            : bookingExtras.get(v.bookingId)
+          : undefined;
+        const headerBadge = headerSpec ? headerRec?.[headerSpec.field] ?? "" : "";
+        const fs = v.bookingStatusId ? statusFs.get(v.bookingStatusId) : undefined;
+        return {
+          ...v,
+          workOrderNumber: wo?.name || v.workOrderNumber,
+          serviceAccount: v.serviceAccount || wo?.serviceAccount || "",
+          incidentType: v.incidentType || wo?.incidentType || "",
+          addressText: v.addressText || wo?.addressText || "",
+          latitude: v.latitude ?? wo?.lat,
+          longitude: v.longitude ?? wo?.lng,
+          priorityName: v.priorityName || wo?.priority || "",
+          fieldServiceStatus: v.fieldServiceStatus ?? fs,
+          products: productsByWo.get(v.workOrderId ?? "") ?? v.products,
+          headerBadge: headerBadge || v.headerBadge,
+          extras: extras.length ? extras : v.extras,
+        };
+      });
+    } catch (e) {
+      console.warn("[BookingCardList] online enrichment unavailable (offline?)", e);
+      return vms;
+    }
   }
 }

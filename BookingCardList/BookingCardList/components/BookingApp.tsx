@@ -3,15 +3,23 @@ import { Theme } from "@fluentui/react-components";
 import { BookingList } from "./BookingList";
 import {
   BookingCardVM, CustomStatus, MapsProvider, StatusChoice, ExtraFieldSpec,
-  ACTIVE_FS_STATUSES, TERMINAL_FS_STATUSES, BUILTIN_BUCKETS, STATUS_ACTIONS, COMPLETE_WINDOW_DAYS, bucketOf,
+  ACTIVE_FS_STATUSES, TERMINAL_FS_STATUSES, STATUS_ACTIONS, TERMINAL_WO_SYSTEMSTATUS, bucketOf, BuiltinBucket,
 } from "../types";
 import { BookingDataService } from "../services/dataverse";
 import { buildMapsUrl, errMsg } from "../util/maps";
 
 type T = (key: string, fallback: string) => string;
 
+// One tab: a named booking bucket, the "Next N Days" list, or the read-only All Jobs list.
+type TabDef =
+  | { kind: "bucket"; bucket: BuiltinBucket; label: string }
+  | { kind: "next"; label: string }
+  | { kind: "alljobs"; label: string };
+
 export interface BookingAppProps {
   service: BookingDataService;
+  /** Cards built from the bound dataset (offline-native). The primary data source. */
+  datasetBookings: BookingCardVM[];
   theme?: Theme;
   defaultTabNames: string[];
   mapsProvider: MapsProvider;
@@ -24,16 +32,27 @@ export interface BookingAppProps {
   /** Optional Work Order / booking field shown as a badge in the card header. */
   headerField?: ExtraFieldSpec;
   priorityColours: Record<string, string>;
+  /** When set (manifest Configuration Source = "This control"), the day windows + custom status come
+   *  from the control's own properties instead of the Field Service Settings record — self-contained
+   *  and offline-safe (no Dataverse read). Undefined = read from Field Service Settings (default). */
+  controlConfig?: {
+    activeDays?: number;
+    completedDays?: number;
+    nextDays?: number;
+    customStatus?: CustomStatus;
+  };
   openItem: (id: string) => void;
   openUrl: (url: string) => void;
+  /** Re-query the bound dataset after a write so the board reflects the change (not stale rows). */
+  refreshDataset: () => void;
   t: T;
 }
 
 export const BookingApp: React.FC<BookingAppProps> = (props) => {
   const {
-    service, theme, defaultTabNames, mapsProvider,
+    service, datasetBookings, theme, defaultTabNames, mapsProvider,
     allJobsEnabled, allJobsName, allJobsDays,
-    extraFields, extrasTitle, headerField, priorityColours, openItem, openUrl, t,
+    extraFields, extrasTitle, headerField, priorityColours, controlConfig, openItem, openUrl, refreshDataset, t,
   } = props;
 
   // Stabilise the custom-field list (index.ts rebuilds it each render) so detail loads
@@ -49,11 +68,9 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
 
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | undefined>();
-  const [notice, setNotice] = React.useState<string | undefined>();
   const [statusBusy, setStatusBusy] = React.useState<Record<string, boolean>>({});
   const [activeIndex, setActiveIndex] = React.useState(0);
   const [bookingIds, setBookingIds] = React.useState<string[]>([]);
-  const [reloadToken, setReloadToken] = React.useState(0);
 
   // All Jobs tab (optional, read-only): all engineers' bookings for the next N days. Kept in a
   // separate map so other engineers' active jobs never affect this user's focus lock.
@@ -67,18 +84,42 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
   // live with the environment and match the EnsureSingleRunningBooking plugin's window.
   const [effectiveCustomStatus, setEffectiveCustomStatus] = React.useState<CustomStatus | undefined>(undefined);
   const [settingsActiveDays, setSettingsActiveDays] = React.useState<number | undefined>(undefined);
+  const [settingsCompletedDays, setSettingsCompletedDays] = React.useState<number | undefined>(undefined);
+  const [settingsNextDays, setSettingsNextDays] = React.useState<number | undefined>(undefined);
   React.useEffect(() => {
+    // Manifest-configured ("This control"): take the windows + custom status straight from the
+    // control's own properties — no Field Service Settings read, so it is fully offline-safe. The
+    // default source still reads the msdyn_fieldservicesetting record as before.
+    if (controlConfig) {
+      setEffectiveCustomStatus(controlConfig.customStatus);
+      setSettingsActiveDays(controlConfig.activeDays);
+      setSettingsCompletedDays(controlConfig.completedDays);
+      setSettingsNextDays(controlConfig.nextDays);
+      return;
+    }
     let cancelled = false;
     void (async () => {
       const s = await service.getFieldServiceSettings();
       if (cancelled) return;
       setEffectiveCustomStatus(s.customStatus);
       setSettingsActiveDays(s.activeDays);
+      setSettingsCompletedDays(s.completedDays);
+      setSettingsNextDays(s.nextDays);
     })();
     return () => {
       cancelled = true;
     };
-  }, [service]);
+    // Depend on the stable primitive config values, not the controlConfig object identity (rebuilt
+    // each render in index.ts) — otherwise the effect would re-run every render.
+  }, [
+    service,
+    controlConfig?.activeDays,
+    controlConfig?.completedDays,
+    controlConfig?.nextDays,
+    controlConfig?.customStatus?.bookingStatusId,
+    controlConfig?.customStatus?.workOrderSubStatusId,
+    controlConfig?.customStatus?.name,
+  ]);
 
   // Active jobs that started before this floor are ignored: not shown in Active and they don't block
   // opening new jobs (a forgotten open job can't lock the board forever). No setting = epoch (no
@@ -89,79 +130,77 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
     return new Date(n.getFullYear(), n.getMonth(), n.getDate() - Math.max(0, settingsActiveDays));
   }, [settingsActiveDays]);
 
-  // Tab labels from the manifest defaults: Active, Today, Tomorrow, Complete, then the optional
-  // All Jobs tab appended last when enabled.
-  const tabNames = React.useMemo(() => {
-    const base = [0, 1, 2, 3].map((i) => defaultTabNames[i] || `Tab ${i + 1}`);
-    if (allJobsEnabled) base.push(allJobsName);
-    return base;
-  }, [defaultTabNames, allJobsEnabled, allJobsName]);
-  const ALL_JOBS_INDEX = 4;
+  // Completed jobs older than this drop off the Complete tab. From Field Service Settings
+  // (prx3_completedbookingdays); blank/unset (incl. offline, where settings can't be read) = no
+  // limit — the Complete tab then shows whatever finished jobs the bound view / offline store holds.
+  const completeFloor = React.useMemo(() => {
+    if (settingsCompletedDays == null) return new Date(0);
+    const n = new Date();
+    return new Date(n.getFullYear(), n.getMonth(), n.getDate() - Math.max(0, settingsCompletedDays));
+  }, [settingsCompletedDays]);
 
-  const loadDetailsFor = React.useCallback(
-    async (ids: string[]) => {
-      const vms = await service.getBookingDetails(ids, extraSpecs, headerSpec);
-      const next: Record<string, BookingCardVM> = {};
-      for (const vm of vms) next[vm.bookingId] = vm;
-      setDetails(next);
-    },
-    [service, extraSpecs, headerSpec]
-  );
+  // Optional "Next N Days" tab: shown ONLY when prx3_nextbookingdays (Field Service Settings) is set
+  // (>0). Blank/unset — including offline, where settings can't be read — hides the tab entirely.
+  const nextEnabled = settingsNextDays != null && settingsNextDays > 0;
 
-  // Turn a raw load failure into something a field engineer can act on. The offline-first engine
-  // reports "Specified FetchXML is invalid" when a required table/column isn't in the app's mobile
-  // offline profile — a config issue, not a real query error — so we say so plainly instead.
-  const loadErrorText = React.useCallback(
-    (e: unknown): string => {
-      const raw = errMsg(e);
-      const gaps = service.getOfflineGapSummary();
-      if (gaps || /fetchxml is invalid|not (currently )?available offline|isn't available offline|offline/i.test(raw)) {
-        const base = t(
-          "OfflineDataError",
-          "Some booking data isn't available offline on this device. Reconnect to load the latest, or ask your administrator to add the required tables/columns to this app's mobile offline profile."
-        );
-        return gaps ? `${base} ${t("OfflineMissingPrefix", "Missing offline:")} ${gaps}.` : base;
-      }
-      return `${t("ErrorPrefix", "Couldn't load bookings")}: ${raw}`;
-    },
-    [t, service]
-  );
+  // Tab order: Active, Today, Tomorrow, then the optional "Next N Days" tab, then Complete, then the
+  // optional All Jobs tab (all engineers) last. Each tab is a named booking bucket, the Next-days
+  // list, or the All Jobs list.
+  const tabDefs = React.useMemo<TabDef[]>(() => {
+    const names = [0, 1, 2, 3].map((i) => defaultTabNames[i] || `Tab ${i + 1}`);
+    const defs: TabDef[] = [
+      { kind: "bucket", bucket: "active", label: names[0] },
+      { kind: "bucket", bucket: "today", label: names[1] },
+      { kind: "bucket", bucket: "tomorrow", label: names[2] },
+    ];
+    if (nextEnabled) defs.push({ kind: "next", label: `Next ${settingsNextDays} Days` });
+    defs.push({ kind: "bucket", bucket: "complete", label: names[3] });
+    if (allJobsEnabled) defs.push({ kind: "alljobs", label: allJobsName });
+    return defs;
+  }, [defaultTabNames, nextEnabled, settingsNextDays, allJobsEnabled, allJobsName]);
 
-  // Load the signed-in user's bookings for the Today / Tomorrow / Complete window directly
-  // (no system views required), then load detail for them. bucketOf() sorts the rest.
+  // Booking cards come from the BOUND DATASET (the configured view), which the Field Service mobile
+  // app serves offline from its local store — the same source the native views use. This replaces
+  // the old Web API self-query, which the offline-first engine rejects (it can't resolve the
+  // signed-in Bookable Resource offline). Show the dataset cards immediately, then enrich online
+  // (products, custom fields, and any Work Order fields the view didn't carry).
+  // Key on the id AND the booking-status/start so that when the bound dataset is refreshed after a
+  // write, a genuine status/reschedule change re-runs the effect and re-applies the fresh rows —
+  // while an unchanged re-render (same content) does not.
+  const datasetKey = datasetBookings
+    .map((v) => `${v.bookingId}:${v.bookingStatusId ?? ""}:${v.startDate?.getTime() ?? ""}`)
+    .join("|");
   React.useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     setError(undefined);
-    setNotice(undefined);
-    service.clearOfflineGaps();
+    // Base cards from the dataset — render straight away (works offline).
+    const base: Record<string, BookingCardVM> = {};
+    for (const v of datasetBookings) base[v.bookingId] = v;
+    setBookingIds(datasetBookings.map((v) => v.bookingId));
+    setDetails(base);
+    setLoading(false);
+    // Seed the status cache from on-screen cards so a status change resolves offline with no query.
+    service.seedStatusCache(datasetBookings);
+    // Warm the full Booking Status / Sub-Status maps too, so a change to a status NOT on the board
+    // (e.g. Cancelled when nothing is cancelled) still resolves offline without a click-time query.
+    void service.preloadStatuses();
+    // Online enrichment overlay — best-effort; offline it returns the cards unchanged.
     void (async () => {
       try {
-        const ids = await service.getMyBookingIds(COMPLETE_WINDOW_DAYS, settingsActiveDays);
+        const enriched = await service.enrichCards(datasetBookings, extraSpecs, headerSpec);
         if (cancelled) return;
-        setBookingIds(ids);
-        await loadDetailsFor(ids);
-        if (cancelled) return;
-        // The cards loaded, but some tables/columns may not have been in the offline profile —
-        // tell the user (and admin) exactly what to add so offline shows everything.
-        const gaps = service.getOfflineGapSummary();
-        setNotice(
-          gaps
-            ? `${t("OfflineGapNotice", "Loaded, but some data isn't in this app's mobile offline profile, so it's missing offline:")} ${gaps}.`
-            : undefined
-        );
+        service.seedStatusCache(enriched);
+        const next: Record<string, BookingCardVM> = {};
+        for (const v of enriched) next[v.bookingId] = v;
+        setDetails(next);
       } catch (e) {
-        if (cancelled) return;
-        console.error("[BookingCardList] Failed to load bookings", e);
-        setError(loadErrorText(e));
-      } finally {
-        if (!cancelled) setLoading(false);
+        console.warn("[BookingCardList] enrichment skipped", errMsg(e));
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [reloadToken, service, loadDetailsFor, settingsActiveDays, loadErrorText, t]);
+  }, [datasetKey, service, extraSpecs, headerSpec]);
 
   // Load the All Jobs tab (all engineers, next N days) when enabled. Independent of the self-query
   // and the focus lock.
@@ -195,43 +234,60 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
     };
   }, [allJobsEnabled, allJobsDays, service, extraSpecs, headerSpec]);
 
-  // Bucket the loaded bookings into Active / Today / Tomorrow / Complete.
-  const idsByTab = React.useMemo(() => {
+  // Bucket the loaded bookings into Active / Today / Tomorrow / Complete (keyed by bucket name so
+  // the tab ORDER can differ from the bucket order — e.g. Next N Days sits between Tomorrow/Complete).
+  const idsByBucket = React.useMemo(() => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-    const byTab: string[][] = [[], [], [], []];
+    const m: Record<BuiltinBucket, string[]> = { active: [], today: [], tomorrow: [], complete: [] };
     for (const id of bookingIds) {
       const vm = details[id];
       if (!vm) continue;
-      const bucket = bucketOf(vm, today, tomorrow, activeFloor);
-      const pos = bucket ? BUILTIN_BUCKETS.indexOf(bucket) : -1;
-      if (pos >= 0) byTab[pos].push(id);
+      const bucket = bucketOf(vm, today, tomorrow, activeFloor, completeFloor);
+      if (bucket) m[bucket].push(id);
     }
-    return byTab;
-  }, [bookingIds, details, activeFloor]);
+    return m;
+  }, [bookingIds, details, activeFloor, completeFloor]);
+
+  // "Next N Days" tab: this engineer's own bookings from today through today + N days
+  // (prx3_nextbookingdays) — a forward-looking overview spanning Today/Tomorrow and beyond.
+  const nextDaysIds = React.useMemo(() => {
+    if (!nextEnabled || settingsNextDays == null) return [];
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const end = new Date(today.getFullYear(), today.getMonth(), today.getDate() + settingsNextDays + 1);
+    return bookingIds
+      .filter((id) => {
+        const d = details[id]?.startDate;
+        return !!d && d >= today && d < end;
+      })
+      .sort((a, b) => (details[a]?.startDate?.getTime() ?? 0) - (details[b]?.startDate?.getTime() ?? 0));
+  }, [bookingIds, details, nextEnabled, settingsNextDays]);
+
+  // Ids for a given tab def: its booking bucket, the Next-days list, or the All Jobs list.
+  const idsForTab = React.useCallback(
+    (def: TabDef): string[] =>
+      def.kind === "alljobs" ? allJobsIds : def.kind === "next" ? nextDaysIds : idsByBucket[def.bucket],
+    [allJobsIds, nextDaysIds, idsByBucket]
+  );
 
   // On first load, land on the Active tab if a job is already started, otherwise Today.
   const tabInitialised = React.useRef(false);
   React.useEffect(() => {
     if (tabInitialised.current || loading || Object.keys(details).length === 0) return;
     tabInitialised.current = true;
-    setActiveIndex((idsByTab[0]?.length ?? 0) > 0 ? 0 : 1);
-  }, [loading, details, idsByTab]);
+    setActiveIndex((idsByBucket.active?.length ?? 0) > 0 ? 0 : 1);
+  }, [loading, details, idsByBucket]);
 
-  const tabs = tabNames.map((name, i) => ({
-    key: String(i),
-    label: name,
-    count: i === ALL_JOBS_INDEX ? allJobsIds.length : idsByTab[i]?.length ?? 0,
-  }));
+  const tabs = tabDefs.map((def, i) => ({ key: String(i), label: def.label, count: idsForTab(def).length }));
 
-  // The All Jobs tab is a separate, read-only data source (all engineers); the others are the
-  // signed-in user's own bookings, subject to the focus lock.
-  const isAllJobsTab = allJobsEnabled && activeIndex === ALL_JOBS_INDEX;
+  // The All Jobs tab is a separate, read-only data source (all engineers). The "Next N Days" tab and
+  // the built-in tabs are all the signed-in user's own bookings, subject to the focus lock.
+  const activeDef = tabDefs[activeIndex];
+  const isAllJobsTab = activeDef?.kind === "alljobs";
   const activeDetails = isAllJobsTab ? allJobsDetails : details;
-  const visibleIds = (isAllJobsTab ? allJobsIds : idsByTab[activeIndex] ?? []).filter(
-    (id) => activeDetails[id]
-  );
+  const visibleIds = (activeDef ? idsForTab(activeDef) : []).filter((id) => activeDetails[id]);
 
   // Focus lock. While any booking is active (Traveling / In Progress), the technician must
   // finish it before opening OR updating any other job — including tomorrow's. Completed /
@@ -268,6 +324,22 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
   // started in the window before the started job is reflected as active (double-start race).
   const boardBusy = Object.values(statusBusy).some(Boolean);
 
+  // The "Working offline" banner/icon reflect real DEVICE connectivity — NOT service.isOffline(),
+  // which reports the offline-first app mode (true even with a live connection) and made the banner
+  // fire while the technician was online. Re-render when connectivity actually changes.
+  const [offline, setOffline] = React.useState<boolean>(() => service.isDeviceOffline());
+  React.useEffect(() => {
+    const update = () => setOffline(service.isDeviceOffline());
+    update();
+    if (typeof window === "undefined") return undefined;
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+    };
+  }, [service]);
+
   const onOpen = React.useCallback((id: string) => openItem(id), [openItem]);
 
   const onOpenMaps = React.useCallback(
@@ -278,18 +350,40 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
     [mapsProvider, openUrl]
   );
 
+  // "This control" config mode (the community build): the booking Work Order Sub-Status
+  // (prx3_substatus) is a P3-only custom field enforced by a business rule, so it is never resolved
+  // or written in this mode — a terminal move just sets the booking status. Keeps the control free of
+  // any prx3_ schema. (The custom-status sub-status writes the WORK ORDER's native msdyn_substatus,
+  // so that path needs no gating.)
+  const usingControlConfig = !!controlConfig;
+
   const doChangeStatus = React.useCallback(
     async (id: string, action: StatusChoice) => {
       setStatusBusy((s) => ({ ...s, [id]: true }));
+      // Offline, a webAPI write IS queued to the local store, but the platform still reports
+      // "couldn't connect to the server" because it can't confirm with the server. Treat that as a
+      // successful offline queue (it syncs when connectivity returns); only a genuine ONLINE failure
+      // (e.g. the one-running-booking rule) should surface as an error.
+      const commitWrite = async (fn: () => Promise<void>): Promise<void> => {
+        try {
+          await fn();
+        } catch (writeErr) {
+          if (service.isDeviceOffline() || service.isOffline()) {
+            console.warn("[BookingCardList] status write queued offline (server unreachable)", errMsg(writeErr));
+            return;
+          }
+          throw writeErr;
+        }
+      };
       try {
         if (action === "custom") {
           if (!effectiveCustomStatus) return;
           if (effectiveCustomStatus.bookingStatusId) {
-            await service.setBookingStatus(id, effectiveCustomStatus.bookingStatusId);
+            await commitWrite(() => service.setBookingStatus(id, effectiveCustomStatus.bookingStatusId!));
           }
           const woId = detailsRef.current[id]?.workOrderId;
           if (effectiveCustomStatus.workOrderSubStatusId && woId) {
-            await service.setWorkOrderSubStatus(woId, effectiveCustomStatus.workOrderSubStatusId);
+            await commitWrite(() => service.setWorkOrderSubStatus(woId, effectiveCustomStatus.workOrderSubStatusId!));
           }
         } else {
           const meta = STATUS_ACTIONS.find((a) => a.key === action);
@@ -297,18 +391,62 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
           const statusId = await service.resolveStatusId(meta.fieldServiceStatus);
           if (!statusId) {
             throw new Error(
-              t("NoStatusFound", "No active Booking Status was found for this action in this environment.")
+              t("NoStatusFound", "No active Booking Status is set up for this action. Ask your administrator to add it in Field Service ▸ Settings ▸ Booking Statuses.")
             );
           }
-          await service.setBookingStatus(id, statusId);
+          // Moving to a terminal status requires a Work Order Sub-Status on the booking
+          // (prx3_substatus) in this environment — resolve and set it in the same write. If none is
+          // configured, tell the user WHERE to fix it rather than letting the raw server error show.
+          const woSys = usingControlConfig ? undefined : TERMINAL_WO_SYSTEMSTATUS[meta.fieldServiceStatus];
+          let subStatusId: string | undefined;
+          if (woSys != null) {
+            subStatusId = await service.resolveSubStatusId(woSys);
+            if (!subStatusId) {
+              throw new Error(
+                t("NoSubStatusFound", "No Work Order Sub-Status is set up for this outcome. Ask your administrator to add one in Field Service ▸ Settings.")
+              );
+            }
+          }
+          await commitWrite(() => service.setBookingStatus(id, statusId, subStatusId));
         }
 
-        const [vm] = await service.getBookingDetails([id], extraSpecs, headerSpec);
-        if (vm) setDetails((d) => ({ ...d, [id]: vm }));
-
-        // Re-run the self-query so the booking lands in the right tab (e.g. a completed job
-        // moving to the Complete tab) and counts refresh.
-        setReloadToken((n) => n + 1);
+        // Optimistic on-screen update of the changed card — this PERSISTS (drives the focus lock
+        // immediately), then we ask the PLATFORM to re-query the bound dataset so the authoritative
+        // rows and tab bucketing catch up. This replaces the old internal reloadToken, which
+        // re-rendered the STALE dataset (PCF doesn't auto-refresh a bound dataset after a write) and
+        // reverted the change on screen.
+        // Re-read the changed card. The detail enrichment is a LIVE (online) query and is
+        // best-effort: offline it can't reach the server, so swallow the failure and rely on the
+        // bound-dataset refresh below (local store), which already reflects the write. Previously
+        // this sat inside the outer try, so an offline re-read surfaced "couldn't connect to the
+        // server" even though the write (an offline-aware webAPI update) had already succeeded.
+        // Optimistically reflect the new status locally so the card and focus-lock update at once,
+        // with NO server round-trip — the reliable path offline. fieldServiceStatus drives the lock
+        // and which tab the card lands in; the exact name/detail catch up on the next refresh/sync.
+        const targetFs =
+          action === "custom"
+            ? detailsRef.current[id]?.fieldServiceStatus
+            : STATUS_ACTIONS.find((a) => a.key === action)?.fieldServiceStatus;
+        if (targetFs != null) {
+          setDetails((d) => {
+            const cur = d[id];
+            return cur ? { ...d, [id]: { ...cur, fieldServiceStatus: targetFs } } : d;
+          });
+        }
+        // The live re-read AND the dataset refresh both hit the server and fail offline (especially
+        // right after an online->offline switch). Both are best-effort: the write already succeeded
+        // and is queued to sync, so their failure must never surface as an update error.
+        try {
+          const [vm] = await service.getBookingDetails([id], extraSpecs, headerSpec);
+          if (vm) setDetails((d) => ({ ...d, [id]: vm }));
+        } catch (e) {
+          console.warn("[BookingCardList] post-update detail re-read skipped (offline)", errMsg(e));
+        }
+        try {
+          refreshDataset();
+        } catch (e) {
+          console.warn("[BookingCardList] dataset refresh skipped (offline)", errMsg(e));
+        }
       } catch (e) {
         console.error("[BookingCardList] Failed to update status", e);
         // Surface the real reason (e.g. the one-running-booking rule) — not a "load" error.
@@ -317,7 +455,7 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
         setStatusBusy((s) => ({ ...s, [id]: false }));
       }
     },
-    [service, effectiveCustomStatus, extraSpecs, headerSpec, t]
+    [service, effectiveCustomStatus, extraSpecs, headerSpec, refreshDataset, t, usingControlConfig]
   );
 
   const onChangeStatus = React.useCallback(
@@ -339,7 +477,7 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
       details={activeDetails}
       loading={isAllJobsTab ? allJobsLoading : loading}
       error={error}
-      notice={isAllJobsTab ? undefined : notice}
+      offlineMode={offline}
       readOnly={isAllJobsTab}
       statusBusy={statusBusy}
       boardBusy={isAllJobsTab ? false : boardBusy}

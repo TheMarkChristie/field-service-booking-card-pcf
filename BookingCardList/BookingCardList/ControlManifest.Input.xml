@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest>
-  <control namespace="Proximo3.FieldService" constructor="BookingCardList" version="0.0.37"
+  <control namespace="Proximo3.FieldService" constructor="BookingCardList" version="1.1.0"
     display-name-key="BookingCardList_Display" description-key="BookingCardList_Desc"
     control-type="virtual">
 
@@ -15,10 +15,13 @@
     <!-- Tab labels. Tabs in order: Active (started jobs), then tab1/2/3. -->
     <property name="activeTabName" display-name-key="ActiveTabName_Display" description-key="ActiveTabName_Desc"
       of-type="SingleLine.Text" usage="input" required="false" default-value="Active" />
-    <!-- The active-booking window (days back an open booking still shows in Active + blocks a new
-         job) is read from the Field Service Settings record (msdyn_fieldservicesetting.
-         prx3_activebookingdays), so the control and the EnsureSingleRunningBooking plugin agree.
-         Blank/0 = no limit. -->
+    <!-- Windows are read from the Field Service Settings record (msdyn_fieldservicesetting):
+         prx3_activebookingdays    = days back an open booking still shows in Active + blocks a new
+                                     job (kept in sync with the EnsureSingleRunningBooking plugin);
+         prx3_completedbookingdays = days back a finished job still shows on the Complete tab;
+         prx3_nextbookingdays      = days ahead for the optional "Next N Days" tab (own upcoming
+                                     bookings). Shown only when set.
+         Blank/0 = no limit. Read online; offline the bound view / offline store governs. -->
     <property name="tab1Name" display-name-key="Tab1Name_Display" description-key="Tab1Name_Desc"
       of-type="SingleLine.Text" usage="input" required="false" default-value="Today" />
     <property name="tab2Name" display-name-key="Tab2Name_Display" description-key="Tab2Name_Desc"
@@ -39,10 +42,37 @@
     <property name="allJobsDays" display-name-key="AllJobsDays_Display" description-key="AllJobsDays_Desc"
       of-type="Whole.None" usage="input" required="false" default-value="7" />
 
-    <!-- The optional custom status option (label + booking status + work order sub-status) is
-         configured on the Field Service Settings record (msdyn_fieldservicesetting):
-         prx3_customstatuslabel, prx3_custombookingstatus, prx3_customworkordersubstatus.
-         It lives there so the GUIDs travel with the environment. -->
+    <!-- ============================================================================
+         CONFIGURATION SOURCE. By default the active / completed / next windows and the
+         optional custom status are read from the Field Service Settings record
+         (msdyn_fieldservicesetting: prx3_activebookingdays / prx3_completedbookingdays /
+         prx3_nextbookingdays / prx3_customstatuslabel / prx3_custombookingstatus /
+         prx3_customworkordersubstatus) so the GUIDs travel with the environment and an admin
+         can change them without editing the control.
+         Set this to "This control" to read them from the properties below instead: fully
+         self-contained (no custom Field Service Settings fields required) and offline-safe
+         (no Dataverse read at all). This is the community configuration. -->
+    <property name="configSource" display-name-key="ConfigSource_Display" description-key="ConfigSource_Desc"
+      of-type="Enum" usage="input" required="false" default-value="0">
+      <value name="settings" display-name-key="ConfigSource_Settings">0</value>
+      <value name="control" display-name-key="ConfigSource_Control">1</value>
+    </property>
+    <!-- Windows, used only when Configuration Source = This control. Blank/0 = no limit. -->
+    <property name="activeBookingDays" display-name-key="ActiveBookingDays_Display" description-key="ActiveBookingDays_Desc"
+      of-type="Whole.None" usage="input" required="false" />
+    <property name="completedBookingDays" display-name-key="CompletedBookingDays_Display" description-key="CompletedBookingDays_Desc"
+      of-type="Whole.None" usage="input" required="false" />
+    <property name="nextBookingDays" display-name-key="NextBookingDays_Display" description-key="NextBookingDays_Desc"
+      of-type="Whole.None" usage="input" required="false" />
+    <!-- Optional custom "Start Job" status, used only when Configuration Source = This control: a
+         display label, the Booking Status record id (GUID), and the Work Order Sub-Status record id
+         (GUID) to set alongside it. Blank booking-status id = the custom status is off. -->
+    <property name="customStatusLabel" display-name-key="CustomStatusLabel_Display" description-key="CustomStatusLabel_Desc"
+      of-type="SingleLine.Text" usage="input" required="false" />
+    <property name="customBookingStatusId" display-name-key="CustomBookingStatusId_Display" description-key="CustomBookingStatusId_Desc"
+      of-type="SingleLine.Text" usage="input" required="false" />
+    <property name="customSubStatusId" display-name-key="CustomSubStatusId_Display" description-key="CustomSubStatusId_Desc"
+      of-type="SingleLine.Text" usage="input" required="false" />
 
     <!-- Up to 3 extra columns to show on each card (value only, no caption). Enter a column
          logical name; prefix with "workorder." for a Work Order field (default is the booking).
@@ -81,7 +111,7 @@
 
     <resources>
       <code path="index.ts" order="1" />
-      <resx path="strings/BookingCardList.1033.resx" version="1.0.0" />
+      <resx path="strings/BookingCardList.1033.resx" version="1.1.0" />
       <platform-library name="React" version="16.14.0" />
       <platform-library name="Fluent" version="9.46.2" />
     </resources>
