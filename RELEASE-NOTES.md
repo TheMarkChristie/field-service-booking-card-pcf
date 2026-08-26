@@ -1,5 +1,47 @@
 # BookingCardList — Release notes
 
+## v1.1.0 — 2026-08-26
+
+**Summary:** Brings the public repo up to the current control version (the interim 0.0.38 → 1.0.x
+builds shipped internally). Headline change: the control can now run **fully self-contained** — its
+day-windows and custom "Start Job" status can be read from the control's own properties instead of
+Field Service Settings, so it installs into any Field Service environment with **no `prx3_` tables or
+columns**. Also folds in the mobile status-menu fix and the offline-first data layer.
+
+### Added
+- **Configuration Source** property (Choice): **Field Service Settings** (default — unchanged) or
+  **This control**. In *This control* mode the control reads its config from new manifest properties
+  and makes **no Field Service Settings read at all** (fully offline-safe, no custom settings schema):
+  - **Active / Completed / Next: Booking Days** (whole numbers; blank/0 = no limit). *Completed* drives
+    the Complete-tab lookback; *Next*, when set, adds an optional forward-looking tab.
+  - **Custom Status Label**, **Custom Booking Status Id** (GUID), **Custom Sub-Status Id** (GUID) — the
+    optional extra "Start Job" status, self-contained in the control.
+- **Standalone-ready:** in *This control* mode the control touches **no `prx3_` field** — the
+  terminal-move Work Order Sub-Status write (a Field-Service-Settings-mode business rule) is skipped,
+  and the custom status writes the Work Order's **native** `msdyn_substatus`. Ships as a control-only
+  solution with zero custom tables. In the default *Field Service Settings* mode nothing changes.
+
+### Fixed
+- **Mobile status menu** — tapping a card's status did nothing in the Field Service Mobile webview: a
+  native `<select>` never fires its change event there. Replaced with a button + click-driven menu,
+  rendered fixed-position so it is no longer clipped by the card. Start / complete / etc. now work on
+  both mobile and web.
+
+### Changed
+- **Dataset-driven, offline-first loading.** Cards build from the **bound view** (served from the
+  mobile local store when offline) with keep-last-good-cards if the bound dataset returns empty
+  offline, an offline write queue (a "couldn't reach the server" write is treated as a successful
+  local queue), and an online/offline banner.
+- **Completed-tab lookback** and an optional **"Next N Days"** tab, from Field Service Settings
+  (`prx3_completedbookingdays` / `prx3_nextbookingdays`) or, in *This control* mode, from the new
+  properties.
+- Control version → **1.1.0**.
+
+### Config / breaking
+- **Re-add the control on the form once** so the new properties surface in the designer.
+- For a standalone / community install, set **Configuration Source = This control** — no
+  `msdyn_fieldservicesetting` `prx3_*` columns are required. The default mode still expects them.
+
 ## v0.0.37 — 2026-07-10  ·  DevSync
 **Summary:** Offline hardening. A column missing from the mobile offline profile no longer breaks the whole card, and the control now names exactly which tables/columns are missing offline.
 

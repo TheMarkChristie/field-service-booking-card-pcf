@@ -93,16 +93,33 @@ Set these in the form/subgrid designer when you add the control (App designer �
 | **Show All Engineers Tab** | Choice (No/Yes) | Add a final read-only tab listing **all engineers'** bookings for the next N days. Default `No`. |
 | **All Jobs Tab Name (default)** | Text | Label for the All Jobs tab. Default `All Jobs`. |
 | **All Jobs: Days Ahead** | Whole Number | How many days ahead (from today) the All Jobs tab covers. Default `7`. |
+| **Configuration Source** | Choice | Where the day-windows and custom status come from: **Field Service Settings** (default) or **This control** (self-contained — no settings schema needed). See [Configuration source](#configuration-source). |
+| **Active / Completed / Next: Booking Days** | Whole Number | *This control* mode only. Days-back for the Active window, days-back for the Complete tab, and days-ahead for an optional Next tab. Blank/0 = no limit. |
+| **Custom Status Label / Booking Status Id / Sub-Status Id** | Text | *This control* mode only. The optional extra "Start Job" status — label, Booking Status **GUID**, and (optional) Work Order Sub-Status **GUID**. Blank Booking Status Id = the option is off. |
 
-> **Custom "Start Job" status — configured on Field Service Settings, not the control.** The extra
-> status option's label and target IDs are read from the **Field Service Settings** record
-> (`msdyn_fieldservicesetting`) so the GUIDs travel with the environment (the same pattern the
-> `EnsureSingleRunningBooking` plugin uses for its paused sub-status). Add these columns to
-> `msdyn_fieldservicesetting`: **`prx3_custombookingstatus`** (lookup → `bookingstatus`, required to
-> enable the option), **`prx3_customworkordersubstatus`** (lookup → `msdyn_workordersubstatus`,
-> optional), and **`prx3_customstatuslabel`** (text; falls back to the booking-status name). When
-> `prx3_custombookingstatus` is empty, the custom option is hidden. *(Before 0.0.23 these were three
-> manifest properties on the control; they were removed in 0.0.23 in favour of Field Service Settings.)*
+### Configuration source
+
+The Active / Completed / Next windows and the optional custom **"Start Job"** status can come from one
+of two places, chosen by the **Configuration Source** property:
+
+**1. Field Service Settings (default).** The values are read from the **Field Service Settings** record
+(`msdyn_fieldservicesetting`) so the GUIDs travel with the environment and an admin can change them
+without touching the control (the same pattern the `EnsureSingleRunningBooking` plugin uses). Add these
+columns to `msdyn_fieldservicesetting`: **`prx3_custombookingstatus`** (lookup → `bookingstatus`,
+required to enable the option), **`prx3_customworkordersubstatus`** (lookup → `msdyn_workordersubstatus`,
+optional), **`prx3_customstatuslabel`** (text; falls back to the booking-status name), and the window
+numbers **`prx3_activebookingdays`** / **`prx3_completedbookingdays`** / **`prx3_nextbookingdays`**. When
+`prx3_custombookingstatus` is empty, the custom option is hidden.
+
+**2. This control (self-contained).** Set **Configuration Source = This control** and the same values
+are read from the control's own properties instead — **Active / Completed / Next: Booking Days** and
+**Custom Status Label / Booking Status Id / Sub-Status Id**. In this mode the control makes **no Field
+Service Settings read** and writes **no `prx3_` field**, so it installs into any Field Service
+environment with **no custom tables or columns** — ideal for a standalone / community deployment. The
+custom status sets the Work Order's native `msdyn_substatus`.
+
+*(Before 0.0.23 the custom status was three manifest properties; 0.0.23 moved it to Field Service
+Settings; 1.1.0 makes both sources available via Configuration Source.)*
 
 ### Custom fields
 
