@@ -9,6 +9,7 @@ const FV = "@OData.Community.Display.V1.FormattedValue";
 const BOOKING = "bookableresourcebooking";
 const WORKORDER = "msdyn_workorder";
 const WORKORDERPRODUCT = "msdyn_workorderproduct";
+const CUSTOMERASSET = "msdyn_customerasset";
 const BOOKINGSTATUS = "bookingstatus";
 const BOOKINGSTATUS_SET = "bookingstatuses";
 
@@ -152,12 +153,16 @@ export class BookingDataService {
 
     const bookingExtraFields = extraSpecs.filter((x) => x.table === "booking").map((x) => x.field);
     const woExtraFields = extraSpecs.filter((x) => x.table === "workorder").map((x) => x.field);
+    const assetExtraFields = extraSpecs.filter((x) => x.table === "asset").map((x) => x.field);
     // The header badge field is fetched alongside the body extras, then rendered separately.
     if (headerSpec) {
-      (headerSpec.table === "workorder" ? woExtraFields : bookingExtraFields).push(headerSpec.field);
+      (headerSpec.table === "workorder" ? woExtraFields
+        : headerSpec.table === "asset" ? assetExtraFields
+          : bookingExtraFields).push(headerSpec.field);
     }
     const uniqBooking = [...new Set(bookingExtraFields)];
     const uniqWo = [...new Set(woExtraFields)];
+    const uniqAsset = [...new Set(assetExtraFields)];
 
     const rows = new Map<string, BookingRow>();
     const workOrderIds = new Set<string>();
@@ -196,12 +201,19 @@ export class BookingDataService {
       }
     }
 
-    const [workOrders, productsByWo, statusFs, bookingExtras, woExtras] = await Promise.all([
+    // Only pay for the second hop when an asset field is actually configured.
+    const assetIdByWo = uniqAsset.length
+      ? await this.getWorkOrderAssetIds([...workOrderIds])
+      : new Map<string, string>();
+
+    const [workOrders, productsByWo, statusFs, bookingExtras, woExtras, assetExtras] = await Promise.all([
       this.getWorkOrders([...workOrderIds]),
       this.getWorkOrderProducts([...workOrderIds]),
       this.getStatusFsValues([...statusIds]),
       this.getExtras(BOOKING, "bookableresourcebookingid", bookingIds, uniqBooking),
       this.getExtras(WORKORDER, "msdyn_workorderid", [...workOrderIds], uniqWo),
+      this.getExtras(CUSTOMERASSET, "msdyn_customerassetid",
+        [...new Set([...assetIdByWo.values()])], uniqAsset),
     ]);
 
     return bookingIds
@@ -210,25 +222,21 @@ export class BookingDataService {
         if (!b) return undefined;
         const wo = b.workOrderId ? workOrders.get(b.workOrderId) : undefined;
         const startDate = b.startIso ? this.parseDate(b.startIso) : undefined;
+        const assetId = b.workOrderId ? assetIdByWo.get(b.workOrderId) : undefined;
+        const pick = (spec: ExtraFieldSpec): Record<string, string> | undefined =>
+          spec.table === "workorder"
+            ? (b.workOrderId ? woExtras.get(b.workOrderId) : undefined)
+            : spec.table === "asset"
+              ? (assetId ? assetExtras.get(assetId) : undefined)
+              : bookingExtras.get(id);
         // Custom fields, in manifest order, pulling each from its source table; blanks dropped.
         const extras = extraSpecs
           .map((spec) => {
-            const rec =
-              spec.table === "workorder"
-                ? b.workOrderId
-                  ? woExtras.get(b.workOrderId)
-                  : undefined
-                : bookingExtras.get(id);
+            const rec = pick(spec);
             return rec?.[spec.field] ?? "";
           })
           .filter((v) => v !== "");
-        const headerRec = headerSpec
-          ? headerSpec.table === "workorder"
-            ? b.workOrderId
-              ? woExtras.get(b.workOrderId)
-              : undefined
-            : bookingExtras.get(id)
-          : undefined;
+        const headerRec = headerSpec ? pick(headerSpec) : undefined;
         const headerBadge = headerSpec ? headerRec?.[headerSpec.field] ?? "" : "";
         return {
           bookingId: id,
@@ -742,6 +750,38 @@ export class BookingDataService {
    * view didn't carry it. Best-effort: offline (Web API rejected) it returns the cards unchanged, so
    * the offline card still renders from whatever the bound view provided.
    */
+  /**
+   * Map work order id -> customer asset id, via the work order's msdyn_customerasset lookup
+   * ("Primary Incident Customer Asset"). This is the second hop that lets a card show a field that
+   * lives on the asset rather than on the booking or the work order.
+   *
+   * Flat FetchXML with no link-entity, so it resolves against the mobile offline store as well as
+   * the live API — but msdyn_customerasset must then be in the offline profile, or the asset fields
+   * simply render blank (the card still loads).
+   */
+  private async getWorkOrderAssetIds(workOrderIds: string[]): Promise<Map<string, string>> {
+    const map = new Map<string, string>();
+    if (workOrderIds.length === 0) return map;
+    for (const ids of chunk(workOrderIds, FETCH_CHUNK)) {
+      try {
+        const entities = await this.fetchXml(
+          WORKORDER,
+          `<fetch><entity name="${WORKORDER}">` +
+            `<attribute name="msdyn_workorderid" /><attribute name="msdyn_customerasset" />` +
+            `<filter>${inCondition("msdyn_workorderid", ids)}</filter>` +
+            `</entity></fetch>`
+        );
+        for (const e of entities) {
+          const assetId = this.toText(e["_msdyn_customerasset_value"]);
+          if (assetId) map.set(e.msdyn_workorderid as string, assetId);
+        }
+      } catch (err) {
+        console.warn("[BookingCardList] could not resolve work order customer assets", err);
+      }
+    }
+    return map;
+  }
+
   public async enrichCards(
     vms: BookingCardVM[],
     extraSpecs: ExtraFieldSpec[] = [],
@@ -753,37 +793,42 @@ export class BookingDataService {
     const statusIds = [...new Set(vms.map((v) => v.bookingStatusId).filter((x): x is string => !!x))];
     const bookingExtraFields = extraSpecs.filter((x) => x.table === "booking").map((x) => x.field);
     const woExtraFields = extraSpecs.filter((x) => x.table === "workorder").map((x) => x.field);
+    const assetExtraFields = extraSpecs.filter((x) => x.table === "asset").map((x) => x.field);
     if (headerSpec) {
-      (headerSpec.table === "workorder" ? woExtraFields : bookingExtraFields).push(headerSpec.field);
+      (headerSpec.table === "workorder" ? woExtraFields
+        : headerSpec.table === "asset" ? assetExtraFields
+          : bookingExtraFields).push(headerSpec.field);
     }
+    // Only pay for the second hop when an asset field is actually configured.
+    const assetIdByWo = assetExtraFields.length
+      ? await this.getWorkOrderAssetIds(woIds)
+      : new Map<string, string>();
     try {
-      const [workOrders, productsByWo, statusFs, bookingExtras, woExtras] = await Promise.all([
+      const [workOrders, productsByWo, statusFs, bookingExtras, woExtras, assetExtras] = await Promise.all([
         this.getWorkOrders(woIds),
         this.getWorkOrderProducts(woIds),
         this.getStatusFsValues(statusIds),
         this.getExtras(BOOKING, "bookableresourcebookingid", bookingIds, [...new Set(bookingExtraFields)]),
         this.getExtras(WORKORDER, "msdyn_workorderid", woIds, [...new Set(woExtraFields)]),
+        this.getExtras(CUSTOMERASSET, "msdyn_customerassetid",
+          [...new Set([...assetIdByWo.values()])], [...new Set(assetExtraFields)]),
       ]);
       return vms.map((v): BookingCardVM => {
         const wo = v.workOrderId ? workOrders.get(v.workOrderId) : undefined;
+        const assetId = v.workOrderId ? assetIdByWo.get(v.workOrderId) : undefined;
+        const pick = (spec: ExtraFieldSpec): Record<string, string> | undefined =>
+          spec.table === "workorder"
+            ? (v.workOrderId ? woExtras.get(v.workOrderId) : undefined)
+            : spec.table === "asset"
+              ? (assetId ? assetExtras.get(assetId) : undefined)
+              : bookingExtras.get(v.bookingId);
         const extras = extraSpecs
           .map((spec) => {
-            const rec =
-              spec.table === "workorder"
-                ? v.workOrderId
-                  ? woExtras.get(v.workOrderId)
-                  : undefined
-                : bookingExtras.get(v.bookingId);
+            const rec = pick(spec);
             return rec?.[spec.field] ?? "";
           })
           .filter((x) => x !== "");
-        const headerRec = headerSpec
-          ? headerSpec.table === "workorder"
-            ? v.workOrderId
-              ? woExtras.get(v.workOrderId)
-              : undefined
-            : bookingExtras.get(v.bookingId)
-          : undefined;
+        const headerRec = headerSpec ? pick(headerSpec) : undefined;
         const headerBadge = headerSpec ? headerRec?.[headerSpec.field] ?? "" : "";
         const fs = v.bookingStatusId ? statusFs.get(v.bookingStatusId) : undefined;
         return {

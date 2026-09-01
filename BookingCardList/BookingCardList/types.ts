@@ -117,15 +117,17 @@ export function parsePriorityColours(raw: string | null | undefined): Record<str
 
 /** A custom field configured in the manifest to show on the card. */
 export interface ExtraFieldSpec {
-  table: "booking" | "workorder";
+  table: "booking" | "workorder" | "asset";
   field: string;
 }
 
-const EXTRA_PREFIX = /^(workorder|wo|booking|brb)\.(.+)$/i;
+const EXTRA_PREFIX = /^(workorder|wo|booking|brb|asset|customerasset|ca)\.(.+)$/i;
 
 /**
  * Parse a manifest custom-field value into a spec. Accepts an optional table prefix:
  *   "workorder.prx3_foo" / "wo.prx3_foo"  -> work order field
+ *   "asset.prx3_baz"     / "ca.prx3_baz"  -> customer asset field, resolved through the work
+ *                                            order's msdyn_customerasset lookup (two hops)
  *   "booking.prx3_bar"   / "prx3_bar"     -> booking field (the default)
  * Returns null when blank. For a lookup column, enter its "_logicalname_value" form.
  */
@@ -134,7 +136,11 @@ export function parseExtraField(raw: string | null | undefined): ExtraFieldSpec 
   if (!s) return null;
   const m = EXTRA_PREFIX.exec(s);
   if (m) {
-    const table = /^(workorder|wo)$/i.test(m[1]) ? "workorder" : "booking";
+    const p = m[1].toLowerCase();
+    const table: ExtraFieldSpec["table"] =
+      p === "workorder" || p === "wo" ? "workorder"
+        : p === "asset" || p === "customerasset" || p === "ca" ? "asset"
+          : "booking";
     const field = m[2].trim();
     return field ? { table, field } : null;
   }
