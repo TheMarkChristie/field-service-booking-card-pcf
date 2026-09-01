@@ -22,6 +22,7 @@ export interface BookingAppProps {
   datasetBookings: BookingCardVM[];
   theme?: Theme;
   defaultTabNames: string[];
+  nextTabName: string;
   mapsProvider: MapsProvider;
   /** Show a final read-only tab of all engineers' bookings for the next N days. */
   allJobsEnabled: boolean;
@@ -50,7 +51,7 @@ export interface BookingAppProps {
 
 export const BookingApp: React.FC<BookingAppProps> = (props) => {
   const {
-    service, datasetBookings, theme, defaultTabNames, mapsProvider,
+    service, datasetBookings, theme, defaultTabNames, nextTabName, mapsProvider,
     allJobsEnabled, allJobsName, allJobsDays,
     extraFields, extrasTitle, headerField, priorityColours, controlConfig, openItem, openUrl, refreshDataset, t,
   } = props;
@@ -153,11 +154,15 @@ export const BookingApp: React.FC<BookingAppProps> = (props) => {
       { kind: "bucket", bucket: "today", label: names[1] },
       { kind: "bucket", bucket: "tomorrow", label: names[2] },
     ];
-    if (nextEnabled) defs.push({ kind: "next", label: `Next ${settingsNextDays} Days` });
+    if (nextEnabled) {
+      // {0} is the day count, so the label localises ("Neste 7 dager") instead of being fixed English.
+      const label = (nextTabName || "Next {0} Days").replace("{0}", String(settingsNextDays));
+      defs.push({ kind: "next", label });
+    }
     defs.push({ kind: "bucket", bucket: "complete", label: names[3] });
     if (allJobsEnabled) defs.push({ kind: "alljobs", label: allJobsName });
     return defs;
-  }, [defaultTabNames, nextEnabled, settingsNextDays, allJobsEnabled, allJobsName]);
+  }, [defaultTabNames, nextTabName, nextEnabled, settingsNextDays, allJobsEnabled, allJobsName]);
 
   // Booking cards come from the BOUND DATASET (the configured view), which the Field Service mobile
   // app serves offline from its local store — the same source the native views use. This replaces

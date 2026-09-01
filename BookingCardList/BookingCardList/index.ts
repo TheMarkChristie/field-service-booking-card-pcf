@@ -64,6 +64,7 @@ export class BookingCardList
       ],
       mapsProvider: this.mapsProvider(context),
       allJobsEnabled: (context.parameters.allJobsTabEnabled?.raw ?? "0").toString() === "1",
+      nextTabName: name(context.parameters.nextTabName?.raw, "Next {0} Days"),
       allJobsName: name(context.parameters.allJobsTabName?.raw, "All Jobs"),
       allJobsDays: this.allJobsDays(context),
       extraFields: this.extraFields(context),

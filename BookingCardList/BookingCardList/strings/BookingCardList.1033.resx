@@ -159,4 +159,10 @@
   <data name="Offline" xml:space="preserve"><value>Offline</value></data>
   <data name="OnlineIcon" xml:space="preserve"><value>Online — connected to live data</value></data>
   <data name="OfflineIcon" xml:space="preserve"><value>Offline — showing data saved on this device</value></data>
+  <data name="NextTabName_Display" xml:space="preserve">
+    <value>Next-days tab: label</value>
+  </data>
+  <data name="NextTabName_Desc" xml:space="preserve">
+    <value>Label for the optional next-N-days tab. {0} is replaced with the number of days, e.g. "Neste {0} dager".</value>
+  </data>
 </root>

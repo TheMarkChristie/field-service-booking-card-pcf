@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest>
-  <control namespace="Proximo3.FieldService" constructor="BookingCardList" version="1.1.0"
+  <control namespace="Proximo3.FieldService" constructor="BookingCardList" version="1.2.1"
     display-name-key="BookingCardList_Display" description-key="BookingCardList_Desc"
     control-type="virtual">
 
@@ -37,6 +37,10 @@
       <value name="no" display-name-key="AllJobsTabEnabled_No">0</value>
       <value name="yes" display-name-key="AllJobsTabEnabled_Yes">1</value>
     </property>
+    <!-- Label for the optional "Next N Days" tab. {0} is replaced with the configured number of
+         days, so "Neste {0} dager" renders as "Neste 7 dager". Omit {0} for a fixed label. -->
+    <property name="nextTabName" display-name-key="NextTabName_Display" description-key="NextTabName_Desc"
+      of-type="SingleLine.Text" usage="input" required="false" default-value="Next {0} Days" />
     <property name="allJobsTabName" display-name-key="AllJobsTabName_Display" description-key="AllJobsTabName_Desc"
       of-type="SingleLine.Text" usage="input" required="false" default-value="All Jobs" />
     <property name="allJobsDays" display-name-key="AllJobsDays_Display" description-key="AllJobsDays_Desc"
@@ -75,8 +79,11 @@
       of-type="SingleLine.Text" usage="input" required="false" />
 
     <!-- Up to 3 extra columns to show on each card (value only, no caption). Enter a column
-         logical name; prefix with "workorder." for a Work Order field (default is the booking).
-         Blank = not shown. For a lookup column use its "_logicalname_value" form. -->
+         logical name; prefix with "workorder." for a Work Order field, or "asset." for a Customer
+         Asset field resolved through the work order's msdyn_customerasset lookup (default is the
+         booking). Blank = not shown. For a lookup column use its "_logicalname_value" form.
+         NOTE: "asset." needs msdyn_customerasset in the mobile offline profile, otherwise those
+         values render blank offline (the card still loads). -->
     <property name="extraField1" display-name-key="ExtraField1_Display" description-key="ExtraField_Desc"
       of-type="SingleLine.Text" usage="input" required="false" />
     <property name="extraField2" display-name-key="ExtraField2_Display" description-key="ExtraField_Desc"
